@@ -7,9 +7,9 @@ import { officers as defaultOfficers, type Officer, type Division } from './data
 import { parseFileToOfficers } from './utils/parseFile';
 import { supabase } from './utils/supabase';
 
-class ErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
-  state = { error: null };
-  static getDerivedStateFromError(e: Error) { return { error: e.message }; }
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: string | null; stack: string | null }> {
+  state = { error: null, stack: null };
+  static getDerivedStateFromError(e: Error) { return { error: e.message, stack: e.stack ?? null }; }
   render() {
     if (this.state.error) {
       return (
@@ -18,8 +18,14 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: string |
             <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
           </div>
           <p className="text-sm font-semibold text-slate-700">Terjadi kesalahan. Muat ulang halaman.</p>
-          <p className="text-xs text-slate-400 font-mono break-all max-w-xs">{this.state.error}</p>
-          <button onClick={() => window.location.reload()} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">Muat Ulang</button>
+          <p className="text-xs text-red-500 font-mono break-all max-w-xs bg-red-50 rounded-lg p-2">{this.state.error}</p>
+          {this.state.stack && (
+            <details className="max-w-xs text-left">
+              <summary className="text-xs text-slate-400 cursor-pointer">Detail error</summary>
+              <pre className="text-[9px] text-slate-400 font-mono break-all whitespace-pre-wrap mt-1 max-h-32 overflow-y-auto">{this.state.stack}</pre>
+            </details>
+          )}
+          <button onClick={() => window.location.reload()} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl">Muat Ulang</button>
         </div>
       );
     }
@@ -78,7 +84,7 @@ function getRankBadge(rank: number) {
 }
 
 function DivisionBadge({ division }: { division: Division }) {
-  const m = DIVISION_META[division];
+  const m = DIVISION_META[division] ?? DIVISION_META['kependudukan'];
   return (
     <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${m.light} ${m.color}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />
@@ -101,7 +107,7 @@ function MiniBar({ value, max, division }: { value: number; max: number; divisio
 }
 
 function DayHeatmap({ byDate, division }: { byDate: Record<string, number>; division: Division }) {
-  const rgb = DIVISION_META[division].heatmapRgb;
+  const rgb = (DIVISION_META[division] ?? DIVISION_META['kependudukan']).heatmapRgb;
   const firstKey = Object.keys(byDate).sort()[0] ?? FALLBACK_DATES[0];
   const [year, month] = firstKey.split('-');
   const yearN = parseInt(year);
