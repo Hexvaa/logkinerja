@@ -535,27 +535,32 @@ export default function App() {
     return list;
   }, [activeOfficers, divFilter, search, sortBy]);
 
-  const PASS_KEY = '__adminUploadPass__';
-
   const handleUploadClick = () => {
-    if (!localStorage.getItem(PASS_KEY)) {
-      localStorage.setItem(PASS_KEY, btoa('admin'));
-    }
     setPassError(null);
     setPassInput('');
     setPassVisible(false);
     setShowPassModal(true);
   };
 
-  const handlePassSubmit = () => {
-    const stored = localStorage.getItem(PASS_KEY) ?? btoa('admin');
-    if (btoa(passInput) !== stored) {
-      setPassError('Password salah. Coba lagi.');
-      return;
+  const handlePassSubmit = async () => {
+    setPassError(null);
+    try {
+      const { data, error } = await supabase
+        .from('admin_config')
+        .select('password_hash')
+        .eq('id', 1)
+        .single();
+      if (error || !data) { setPassError('Gagal memuat konfigurasi admin.'); return; }
+      if (passInput !== data.password_hash) {
+        setPassError('Password salah. Coba lagi.');
+        return;
+      }
+      setShowPassModal(false);
+      setShowUpload(true);
+      setUploadError(null);
+    } catch {
+      setPassError('Koneksi gagal. Periksa jaringan.');
     }
-    setShowPassModal(false);
-    setShowUpload(true);
-    setUploadError(null);
   };
 
   const handleFile = useCallback(async (file: File) => {
