@@ -116,6 +116,9 @@ function DayHeatmap({ byDate, division }: { byDate: Record<string, number>; divi
   while (cells.length % 7 !== 0) cells.push(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
+  const selV = selectedDay ? (byDate[selectedDay] ?? 0) : null;
+  const selDayNum = selectedDay ? selectedDay.split('-')[2] : null;
+
   return (
     <div>
       <div className="grid grid-cols-7 gap-1.5 mb-2">
@@ -135,40 +138,42 @@ function DayHeatmap({ byDate, division }: { byDate: Record<string, number>; divi
           const dayNum = d.split('-')[2];
           const isSelected = selectedDay === d;
           return (
-            <div key={d} className="relative group">
-              <div
-                onClick={() => setSelectedDay(isSelected ? null : d)}
-                className={`rounded-lg flex flex-col items-center justify-center py-1.5 cursor-pointer select-none
-                  transition-all duration-150 hover:scale-105 active:scale-90 touch-manipulation
-                  ${isSelected ? 'ring-2 ring-offset-1 scale-105 shadow-md' : ''}`}
-                style={{
-                  backgroundColor: bg,
-                  minHeight: '3rem',
-                  ...(isSelected ? { outline: `2px solid rgba(${rgb},0.8)`, outlineOffset: '2px' } : {}),
-                }}
-              >
-                <span className={`text-sm font-bold tabular-nums leading-none ${light ? 'text-slate-600' : 'text-white'}`}>
-                  {dayNum}
+            <div
+              key={d}
+              onClick={() => setSelectedDay(isSelected ? null : d)}
+              className={`rounded-lg flex flex-col items-center justify-center py-1.5 cursor-pointer select-none active:scale-90 touch-manipulation transition-transform duration-100${isSelected ? ' scale-105' : ''}`}
+              style={{
+                backgroundColor: bg,
+                minHeight: '3rem',
+                outline: isSelected ? `2px solid rgba(${rgb},0.8)` : undefined,
+                outlineOffset: isSelected ? '2px' : undefined,
+              }}
+            >
+              <span className={`text-sm font-bold tabular-nums leading-none ${light ? 'text-slate-600' : 'text-white'}`}>
+                {dayNum}
+              </span>
+              {v > 0 && (
+                <span className={`text-[10px] font-semibold tabular-nums mt-1 leading-none ${light ? 'text-slate-500' : 'text-white/90'}`}>
+                  {fmt(v)}
                 </span>
-                {v > 0 && (
-                  <span className={`text-[10px] font-semibold tabular-nums mt-1 leading-none ${light ? 'text-slate-500' : 'text-white/90'}`}>
-                    {fmt(v)}
-                  </span>
-                )}
-              </div>
-              {/* Tooltip: hover (desktop) or tap (mobile) */}
-              <div className={`absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2.5 py-1.5 rounded-lg whitespace-nowrap transition-opacity pointer-events-none z-20 shadow-lg
-                ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                <div className="font-semibold">{dayNum} {MONTH_FULL[month]} {year}</div>
-                {v > 0
-                  ? <div className="text-slate-300 mt-0.5">{fmt(v)} tugas</div>
-                  : <div className="text-slate-400 mt-0.5">Tidak aktif</div>}
-                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
-              </div>
+              )}
             </div>
           );
         })}
       </div>
+      {/* Single shared info box — replaces 30 individual tooltips */}
+      {selectedDay && selDayNum !== null && selV !== null && (
+        <div className="mt-3 flex items-center gap-3 bg-slate-800 text-white text-xs px-3.5 py-2.5 rounded-xl">
+          <div className="font-semibold">{selDayNum} {MONTH_FULL[month]} {year}</div>
+          <div className="h-3 w-px bg-white/20" />
+          {selV > 0
+            ? <div className="text-slate-300">{fmt(selV)} tugas</div>
+            : <div className="text-slate-400">Tidak aktif</div>}
+          <button onClick={() => setSelectedDay(null)} className="ml-auto text-slate-400 hover:text-white transition-colors">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
