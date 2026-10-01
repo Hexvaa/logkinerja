@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback, useEffect, Component, type ReactNode } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect, Component, createContext, useContext, type ReactNode } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell as PieCell, Legend, LabelList,
@@ -42,20 +42,30 @@ const FALLBACK_DATES = [
   '2026-08-27','2026-08-28','2026-08-29','2026-08-31',
 ];
 
-type DivisionFilter = 'semua' | Division;
+type DivisionFilter = string;
+type ManagedDivision = { key: string; label: string; short?: string };
+type DivMeta = { label: string; short: string; color: string; bg: string; light: string; dot: string; heatmapRgb: string };
 
-const DIVISION_META: Record<Division, { label: string; short: string; color: string; bg: string; light: string; dot: string; heatmapRgb: string }> = {
-  kependudukan: {
-    label: 'Kependudukan', short: 'Kependudukan',
-    color: 'text-blue-700', bg: 'bg-blue-600', light: 'bg-blue-50', dot: 'bg-blue-500',
-    heatmapRgb: '29,78,216',
-  },
-  pencatatan_sipil: {
-    label: 'Pencatatan Sipil', short: 'Catatan Sipil',
-    color: 'text-emerald-700', bg: 'bg-emerald-600', light: 'bg-emerald-50', dot: 'bg-emerald-500',
-    heatmapRgb: '5,150,105',
-  },
+const DEFAULT_DIV_META: Record<string, DivMeta> = {
+  kependudukan: { label: 'Kependudukan', short: 'Kependudukan', color: 'text-blue-700', bg: 'bg-blue-600', light: 'bg-blue-50', dot: 'bg-blue-500', heatmapRgb: '29,78,216' },
+  pencatatan_sipil: { label: 'Pencatatan Sipil', short: 'Catatan Sipil', color: 'text-emerald-700', bg: 'bg-emerald-600', light: 'bg-emerald-50', dot: 'bg-emerald-500', heatmapRgb: '5,150,105' },
 };
+
+const EXTRA_COLORS: Omit<DivMeta, 'label' | 'short'>[] = [
+  { color: 'text-violet-700', bg: 'bg-violet-600', light: 'bg-violet-50', dot: 'bg-violet-500', heatmapRgb: '109,40,217' },
+  { color: 'text-orange-700', bg: 'bg-orange-600', light: 'bg-orange-50', dot: 'bg-orange-500', heatmapRgb: '234,88,12' },
+  { color: 'text-rose-700', bg: 'bg-rose-600', light: 'bg-rose-50', dot: 'bg-rose-500', heatmapRgb: '225,29,72' },
+  { color: 'text-teal-700', bg: 'bg-teal-600', light: 'bg-teal-50', dot: 'bg-teal-500', heatmapRgb: '13,148,136' },
+  { color: 'text-amber-700', bg: 'bg-amber-600', light: 'bg-amber-50', dot: 'bg-amber-500', heatmapRgb: '217,119,6' },
+  { color: 'text-cyan-700', bg: 'bg-cyan-600', light: 'bg-cyan-50', dot: 'bg-cyan-500', heatmapRgb: '8,145,178' },
+];
+
+const DEFAULT_MANAGED: ManagedDivision[] = [
+  { key: 'kependudukan', label: 'Kependudukan' },
+  { key: 'pencatatan_sipil', label: 'Pencatatan Sipil', short: 'Catatan Sipil' },
+];
+
+const DivMetaContext = createContext<Record<string, DivMeta>>(DEFAULT_DIV_META);
 
 const MONTH_NAMES: Record<string, string> = {
   '01':'Jan','02':'Feb','03':'Mar','04':'Apr','05':'Mei','06':'Jun',
@@ -83,8 +93,9 @@ function getRankBadge(rank: number) {
   return null;
 }
 
-function DivisionBadge({ division }: { division: Division }) {
-  const m = DIVISION_META[division] ?? DIVISION_META['kependudukan'];
+function DivisionBadge({ division }: { division: string }) {
+  const ctx = useContext(DivMetaContext);
+  const m = ctx[division] ?? ctx['kependudukan'] ?? Object.values(ctx)[0];
   return (
     <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${m.light} ${m.color}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />
@@ -106,8 +117,9 @@ function MiniBar({ value, max, division }: { value: number; max: number; divisio
   );
 }
 
-function DayHeatmap({ byDate, division }: { byDate: Record<string, number>; division: Division }) {
-  const rgb = (DIVISION_META[division] ?? DIVISION_META['kependudukan']).heatmapRgb;
+function DayHeatmap({ byDate, division }: { byDate: Record<string, number>; division: string }) {
+  const ctx = useContext(DivMetaContext);
+  const rgb = (ctx[division] ?? ctx['kependudukan'] ?? Object.values(ctx)[0]).heatmapRgb;
   const firstKey = Object.keys(byDate).sort()[0] ?? FALLBACK_DATES[0];
   const [year, month] = firstKey.split('-');
   const yearN = parseInt(year);
@@ -223,7 +235,8 @@ function exportOfficerCSV(officer: Officer, monthLabel: string) {
 }
 
 function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => void }) {
-  const meta = DIVISION_META[officer.division] ?? DIVISION_META['kependudukan'];
+  const ctx = useContext(DivMetaContext);
+  const meta = ctx[officer.division] ?? ctx['kependudukan'] ?? Object.values(ctx)[0];
   const byDate = officer.byDate ?? {};
   const topServices = officer.topServices ?? [];
   const topProcesses = officer.topProcesses ?? [];
@@ -557,9 +570,42 @@ export default function App() {
   const [sortBy, setSortBy] = useState<'name' | 'totalRecords'>('name');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Managed divisions
+  const [managedDivisions, setManagedDivisions] = useState<ManagedDivision[]>(DEFAULT_MANAGED);
+  const [showManageDivisions, setShowManageDivisions] = useState(false);
+  const [divEditKey, setDivEditKey] = useState<string | null>(null);
+  const [divEditLabel, setDivEditLabel] = useState('');
+  const [newDivLabel, setNewDivLabel] = useState('');
+  const [divSaving, setDivSaving] = useState(false);
+
+  // Period management
+  const [showManagePeriods, setShowManagePeriods] = useState(false);
+  const [deletingPeriod, setDeletingPeriod] = useState<string | null>(null);
+  const [periodSaving, setPeriodSaving] = useState(false);
+  const [renamingPeriod, setRenamingPeriod] = useState<string | null>(null);
+  const [periodRenameVal, setPeriodRenameVal] = useState('');
+  // Custom period labels stored separately (key = month_key, value = custom label)
+  const [periodLabels, setPeriodLabels] = useState<Record<string, string>>({});
+
+  const divMeta = useMemo<Record<string, DivMeta>>(() => {
+    const result: Record<string, DivMeta> = {};
+    let extraIdx = 0;
+    managedDivisions.forEach(({ key, label, short }) => {
+      const base = DEFAULT_DIV_META[key];
+      if (base) {
+        result[key] = { ...base, label, short: short ?? base.short };
+      } else {
+        const colors = EXTRA_COLORS[extraIdx % EXTRA_COLORS.length];
+        extraIdx++;
+        result[key] = { label, short: short ?? (label.length > 10 ? label.slice(0, 8) + '…' : label), ...colors };
+      }
+    });
+    return result;
+  }, [managedDivisions]);
+
   // Admin CRUD
   const [editingOfficer, setEditingOfficer] = useState<Officer | null>(null);
-  const [editForm, setEditForm] = useState<{ name: string; username: string; division: Division }>({ name: '', username: '', division: 'kependudukan' });
+  const [editForm, setEditForm] = useState<{ name: string; username: string; division: string }>({ name: '', username: '', division: 'kependudukan' });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [deletingOfficer, setDeletingOfficer] = useState<Officer | null>(null);
@@ -575,9 +621,21 @@ export default function App() {
       .then(({ data }) => {
         if (data && data.length > 0) {
           const loaded: Record<string, Officer[]> = {};
-          for (const row of data) loaded[row.month_key] = row.officers as Officer[];
-          setMonthData(loaded);
-          setActiveMonth(Object.keys(loaded).sort().reverse()[0]);
+          for (const row of data) {
+            if (row.month_key === '__divisions__') {
+              const stored = row.officers as ManagedDivision[];
+              if (Array.isArray(stored) && stored.length > 0) setManagedDivisions(stored);
+            } else if (row.month_key === '__period_labels__') {
+              const stored = row.officers as Record<string, string>;
+              if (stored && typeof stored === 'object') setPeriodLabels(stored);
+            } else {
+              loaded[row.month_key] = row.officers as Officer[];
+            }
+          }
+          if (Object.keys(loaded).length > 0) {
+            setMonthData(loaded);
+            setActiveMonth(Object.keys(loaded).sort().reverse()[0]);
+          }
         }
         setSyncLoading(false);
       });
@@ -586,9 +644,15 @@ export default function App() {
     const channel = supabase
       .channel('rekap_realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rekap_data' }, (payload) => {
-        const row = payload.new as { month_key: string; officers: Officer[] };
-        if (row?.month_key) {
-          setMonthData(prev => ({ ...prev, [row.month_key]: row.officers }));
+        const row = payload.new as { month_key: string; officers: unknown };
+        if (row?.month_key === '__divisions__') {
+          const stored = row.officers as ManagedDivision[];
+          if (Array.isArray(stored) && stored.length > 0) setManagedDivisions(stored);
+        } else if (row?.month_key === '__period_labels__') {
+          const stored = row.officers as Record<string, string>;
+          if (stored && typeof stored === 'object') setPeriodLabels(stored);
+        } else if (row?.month_key) {
+          setMonthData(prev => ({ ...prev, [row.month_key]: row.officers as Officer[] }));
           setActiveMonth(() => row.month_key);
         }
       })
@@ -597,19 +661,24 @@ export default function App() {
     return () => { supabase?.removeChannel(channel); };
   }, []);
 
-  const availableMonths = useMemo(() => Object.keys(monthData).sort().reverse(), [monthData]);
+  const availableMonths = useMemo(() => Object.keys(monthData).filter(k => k !== '__period_labels__').sort().reverse(), [monthData]);
   const activeOfficers = useMemo(() => monthData[activeMonth] ?? [], [monthData, activeMonth]);
 
-  const divisionCounts = useMemo(() => ({
-    semua: activeOfficers.length,
-    kependudukan: activeOfficers.filter(o => o.division === 'kependudukan').length,
-    pencatatan_sipil: activeOfficers.filter(o => o.division === 'pencatatan_sipil').length,
-  }), [activeOfficers]);
+  const divisionCounts = useMemo(() => {
+    const counts: Record<string, number> = { semua: activeOfficers.length };
+    managedDivisions.forEach(({ key }) => {
+      counts[key] = activeOfficers.filter(o => o.division === key).length;
+    });
+    return counts;
+  }, [activeOfficers, managedDivisions]);
 
-  const divTotals = useMemo(() => ({
-    kependudukan: activeOfficers.filter(o => o.division === 'kependudukan').reduce((s, o) => s + o.totalRecords, 0),
-    pencatatan_sipil: activeOfficers.filter(o => o.division === 'pencatatan_sipil').reduce((s, o) => s + o.totalRecords, 0),
-  }), [activeOfficers]);
+  const divTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    managedDivisions.forEach(({ key }) => {
+      totals[key] = activeOfficers.filter(o => o.division === key).reduce((s, o) => s + (o.totalRecords ?? 0), 0);
+    });
+    return totals;
+  }, [activeOfficers, managedDivisions]);
 
   const totalRecords = useMemo(() => activeOfficers.reduce((s, o) => s + o.totalRecords, 0), [activeOfficers]);
   const maxRecords = useMemo(() =>
@@ -617,10 +686,16 @@ export default function App() {
   [activeOfficers]);
 
   const tabs = useMemo(() => [
-    { id: 'semua' as DivisionFilter, label: 'Semua', count: divisionCounts.semua, active: 'border-white text-white' },
-    { id: 'kependudukan' as DivisionFilter, label: 'Kependudukan', count: divisionCounts.kependudukan, active: 'border-blue-400 text-blue-300' },
-    { id: 'pencatatan_sipil' as DivisionFilter, label: 'Pencatatan Sipil', count: divisionCounts.pencatatan_sipil, active: 'border-emerald-400 text-emerald-300' },
-  ], [divisionCounts]);
+    { id: 'semua', label: 'Semua', count: divisionCounts.semua ?? 0, active: 'border-white text-white' },
+    ...managedDivisions.map(({ key }) => ({
+      id: key,
+      label: divMeta[key]?.label ?? key,
+      count: divisionCounts[key] ?? 0,
+      active: key === 'kependudukan' ? 'border-blue-400 text-blue-300'
+        : key === 'pencatatan_sipil' ? 'border-emerald-400 text-emerald-300'
+        : 'border-slate-300 text-slate-200',
+    })),
+  ], [divisionCounts, managedDivisions, divMeta]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -740,8 +815,84 @@ export default function App() {
     }
   };
 
+  const saveDivisionsToSupabase = async (next: ManagedDivision[]) => {
+    setManagedDivisions(next);
+    if (supabase) {
+      await supabase.from('rekap_data').upsert(
+        { month_key: '__divisions__', officers: next as unknown, updated_at: new Date().toISOString() },
+        { onConflict: 'month_key' }
+      );
+    }
+  };
+
+  const handleAddDivision = async () => {
+    const label = newDivLabel.trim();
+    if (!label) return;
+    const key = label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || `div_${Date.now()}`;
+    if (managedDivisions.some(d => d.key === key)) return;
+    setDivSaving(true);
+    await saveDivisionsToSupabase([...managedDivisions, { key, label }]);
+    setNewDivLabel('');
+    setDivSaving(false);
+  };
+
+  const handleEditDivision = async (key: string, newLabel: string) => {
+    const label = newLabel.trim();
+    if (!label) return;
+    const short = label.length > 12 ? label.slice(0, 10) + '…' : undefined;
+    setDivSaving(true);
+    await saveDivisionsToSupabase(managedDivisions.map(d => d.key === key ? { ...d, label, short } : d));
+    setDivEditKey(null);
+    setDivSaving(false);
+  };
+
+  const handleDeleteDivision = async (key: string) => {
+    const hasOfficers = activeOfficers.some(o => o.division === key);
+    if (hasOfficers) return;
+    setDivSaving(true);
+    await saveDivisionsToSupabase(managedDivisions.filter(d => d.key !== key));
+    setDivSaving(false);
+  };
+
+  const handleDeletePeriod = async (mk: string) => {
+    if (!supabase) return;
+    setPeriodSaving(true);
+    setMonthData(prev => { const next = { ...prev }; delete next[mk]; return next; });
+    if (activeMonth === mk) setActiveMonth('');
+    await supabase.from('rekap_data').delete().eq('month_key', mk);
+    // clean up label if exists
+    if (periodLabels[mk]) {
+      const next = { ...periodLabels }; delete next[mk];
+      setPeriodLabels(next);
+      await supabase.from('rekap_data').upsert(
+        { month_key: '__period_labels__', officers: next as unknown, updated_at: new Date().toISOString() },
+        { onConflict: 'month_key' }
+      );
+    }
+    setDeletingPeriod(null);
+    setPeriodSaving(false);
+  };
+
+  const handleSavePeriodLabel = async (mk: string, label: string) => {
+    if (!supabase) return;
+    setPeriodSaving(true);
+    const next = { ...periodLabels, [mk]: label.trim() };
+    if (!label.trim()) { delete next[mk]; }
+    setPeriodLabels(next);
+    await supabase.from('rekap_data').upsert(
+      { month_key: '__period_labels__', officers: next as unknown, updated_at: new Date().toISOString() },
+      { onConflict: 'month_key' }
+    );
+    setRenamingPeriod(null);
+    setPeriodSaving(false);
+  };
+
   if (selected) {
-    return <ErrorBoundary><OfficerDetail officer={selected} onBack={() => setSelected(null)} /></ErrorBoundary>;
+    return (
+      <DivMetaContext.Provider value={divMeta}>
+        <ErrorBoundary><OfficerDetail officer={selected} onBack={() => setSelected(null)} /></ErrorBoundary>
+      </DivMetaContext.Provider>
+    );
   }
 
   const monthLabel = getMonthLabel(activeMonth);
@@ -756,8 +907,138 @@ export default function App() {
   }
 
   return (
+  <DivMetaContext.Provider value={divMeta}>
   <ErrorBoundary>
     <div className="min-h-screen bg-[#f8fafc]">
+
+      {/* Kelola Bidang Modal */}
+      {showManageDivisions && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={e => { if (e.target === e.currentTarget) { setShowManageDivisions(false); setDivEditKey(null); setNewDivLabel(''); } }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Kelola Bidang</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Tambah, ubah nama, atau hapus bidang</p>
+              </div>
+              <button onClick={() => { setShowManageDivisions(false); setDivEditKey(null); setNewDivLabel(''); }}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="px-6 py-3 space-y-1.5 max-h-64 overflow-y-auto">
+              {managedDivisions.map(({ key, label }) => {
+                const isDefault = key === 'kependudukan' || key === 'pencatatan_sipil';
+                const dm = divMeta[key];
+                const officersInDiv = activeOfficers.filter(o => o.division === key).length;
+                return (
+                  <div key={key} className="flex items-center gap-2 py-1">
+                    {divEditKey === key ? (
+                      <>
+                        <input autoFocus type="text" value={divEditLabel}
+                          onChange={e => setDivEditLabel(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') handleEditDivision(key, divEditLabel); if (e.key === 'Escape') setDivEditKey(null); }}
+                          className="flex-1 border border-blue-400 rounded-lg px-3 py-1.5 text-sm focus:outline-none" />
+                        <button onClick={() => handleEditDivision(key, divEditLabel)} disabled={divSaving}
+                          className="px-2.5 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg disabled:opacity-50">Simpan</button>
+                        <button onClick={() => setDivEditKey(null)}
+                          className="px-2.5 py-1.5 text-xs text-slate-500 border border-slate-200 rounded-lg">Batal</button>
+                      </>
+                    ) : (
+                      <>
+                        <div className={`w-2.5 h-2.5 rounded-full ${dm?.dot ?? 'bg-slate-400'} flex-shrink-0`} />
+                        <span className="flex-1 text-sm text-slate-700">{label}</span>
+                        <span className="text-xs text-slate-400">{officersInDiv} ptgs</span>
+                        <button onClick={() => { setDivEditKey(key); setDivEditLabel(label); }}
+                          className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-400">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+                        </button>
+                        {!isDefault && (
+                          <button onClick={() => handleDeleteDivision(key)}
+                            disabled={officersInDiv > 0 || divSaving}
+                            title={officersInDiv > 0 ? `Masih ada ${officersInDiv} petugas` : 'Hapus bidang'}
+                            className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 disabled:opacity-30 disabled:cursor-not-allowed">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="px-6 pb-6 pt-3 border-t border-slate-100">
+              <p className="text-xs font-semibold text-slate-500 mb-2">Tambah Bidang Baru</p>
+              <div className="flex gap-2">
+                <input type="text" value={newDivLabel}
+                  onChange={e => setNewDivLabel(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAddDivision(); }}
+                  placeholder="Nama bidang baru..."
+                  className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                <button onClick={handleAddDivision} disabled={!newDivLabel.trim() || divSaving}
+                  className="px-3 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold disabled:opacity-50">
+                  {divSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Tambah'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Period Modal */}
+      {renamingPeriod && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={e => { if (e.target === e.currentTarget) setRenamingPeriod(null); }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs overflow-hidden">
+            <div className="px-5 pt-5 pb-4 border-b border-slate-100">
+              <h2 className="text-sm font-bold text-slate-900">Ubah Nama Periode</h2>
+              <p className="text-xs text-slate-400 mt-0.5">Label kustom untuk periode ini</p>
+            </div>
+            <div className="px-5 py-4">
+              <input autoFocus type="text" value={periodRenameVal}
+                onChange={e => setPeriodRenameVal(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleSavePeriodLabel(renamingPeriod, periodRenameVal); if (e.key === 'Escape') setRenamingPeriod(null); }}
+                placeholder="Contoh: Triwulan I 2026"
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+            </div>
+            <div className="px-5 pb-5 flex gap-2">
+              <button onClick={() => setRenamingPeriod(null)} className="flex-1 py-2 rounded-xl border border-slate-200 text-sm text-slate-500">Batal</button>
+              <button onClick={() => handleSavePeriodLabel(renamingPeriod, periodRenameVal)} disabled={periodSaving}
+                className="flex-1 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold disabled:opacity-50">
+                {periodSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto" /> : 'Simpan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Period Confirm */}
+      {deletingPeriod && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={e => { if (e.target === e.currentTarget) setDeletingPeriod(null); }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs overflow-hidden">
+            <div className="px-5 pt-5 pb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center mb-3">
+                <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+              </div>
+              <h2 className="text-sm font-bold text-slate-900">Hapus Periode?</h2>
+              {(() => {
+                const [y, m] = deletingPeriod.split('-');
+                const label = periodLabels[deletingPeriod] || `${MONTH_NAMES[m] ?? m} ${y}`;
+                const count = (monthData[deletingPeriod] ?? []).length;
+                return <p className="text-xs text-slate-500 mt-1"><span className="font-semibold text-slate-700">{label}</span> ({count} petugas) akan dihapus permanen.</p>;
+              })()}
+            </div>
+            <div className="px-5 pb-5 flex gap-2">
+              <button onClick={() => setDeletingPeriod(null)} className="flex-1 py-2 rounded-xl border border-slate-200 text-sm text-slate-500">Batal</button>
+              <button onClick={() => handleDeletePeriod(deletingPeriod)} disabled={periodSaving}
+                className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold disabled:opacity-50">
+                {periodSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto" /> : 'Hapus'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Admin Login Modal */}
       {showLoginModal && (
@@ -927,15 +1208,17 @@ export default function App() {
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Bidang</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {(['kependudukan', 'pencatatan_sipil'] as Division[]).map(div => (
-                    <button key={div} type="button"
-                      onClick={() => setEditForm(f => ({ ...f, division: div }))}
-                      className={`py-2.5 rounded-xl text-xs font-semibold border ${editForm.division === div
-                        ? div === 'kependudukan' ? 'bg-blue-600 text-white border-blue-600' : 'bg-emerald-600 text-white border-emerald-600'
-                        : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>
-                      {DIVISION_META[div].label}
-                    </button>
-                  ))}
+                  {managedDivisions.map(({ key }) => {
+                    const m = divMeta[key] ?? divMeta['kependudukan'];
+                    const isSelected = editForm.division === key;
+                    return (
+                      <button key={key} type="button"
+                        onClick={() => setEditForm(f => ({ ...f, division: key }))}
+                        className={`py-2.5 rounded-xl text-xs font-semibold border ${isSelected ? `${m.bg} text-white border-transparent` : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>
+                        {m.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               {editError && <p className="text-xs text-red-500 font-medium bg-red-50 border border-red-100 rounded-lg px-3 py-2">{editError}</p>}
@@ -1012,6 +1295,13 @@ export default function App() {
                     <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" /></svg>
                     Upload
                   </button>
+                  <button
+                    onClick={() => setShowManageDivisions(true)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs sm:text-sm font-medium text-white whitespace-nowrap"
+                  >
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" /></svg>
+                    Bidang
+                  </button>
                   <button onClick={handleLogout} className="px-2.5 py-2 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-xs font-medium text-slate-300 whitespace-nowrap">
                     Logout
                   </button>
@@ -1032,22 +1322,41 @@ export default function App() {
           {availableMonths.length > 0 && (
             <div className="flex items-center gap-2 pb-5 flex-wrap">
               <span className="text-sm text-slate-400 font-medium mr-1">Periode:</span>
-              {availableMonths.map((mk, i) => {
+              {availableMonths.map((mk) => {
                 const [y, m] = mk.split('-');
                 const isActive = mk === activeMonth;
+                const customLabel = periodLabels[mk];
+                const displayLabel = customLabel || `${MONTH_NAMES[m] ?? m} ${y}`;
                 return (
-                  <button
-                    key={mk}
-                    onClick={() => { setActiveMonth(mk); setDivFilter('semua'); setSearch(''); }}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold ${
-                      isActive
-                        ? 'bg-white text-slate-900 shadow-md'
-                        : 'bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white'
-                    }`}
-                  >
-                    <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-blue-500' : 'bg-white/40'}`} />
-                    {MONTH_NAMES[m]} {y}
-                  </button>
+                  <div key={mk} className="relative group/pill flex items-center">
+                    <button
+                      onClick={() => { setActiveMonth(mk); setDivFilter('semua'); setSearch(''); }}
+                      className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold ${
+                        isActive
+                          ? 'bg-white text-slate-900 shadow-md'
+                          : 'bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white'
+                      } ${isAdmin ? 'pr-8' : ''}`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-blue-500' : 'bg-white/40'}`} />
+                      {displayLabel}
+                    </button>
+                    {isAdmin && (
+                      <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover/pill:opacity-100">
+                        <button
+                          onClick={e => { e.stopPropagation(); setRenamingPeriod(mk); setPeriodRenameVal(customLabel || `${MONTH_NAMES[m] ?? m} ${y}`); }}
+                          className="w-5 h-5 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center text-white/80"
+                          title="Ubah nama periode">
+                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+                        </button>
+                        <button
+                          onClick={e => { e.stopPropagation(); setDeletingPeriod(mk); }}
+                          className="w-5 h-5 rounded-full bg-red-500/60 hover:bg-red-500 flex items-center justify-center text-white"
+                          title="Hapus periode">
+                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -1055,21 +1364,21 @@ export default function App() {
 
           {/* Division summary cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-6">
-            {(['kependudukan', 'pencatatan_sipil'] as Division[]).map((div, di) => {
-              const m = DIVISION_META[div];
-              const pct = totalRecords > 0 ? Math.round((divTotals[div] / totalRecords) * 100) : 0;
+            {managedDivisions.map(({ key }) => {
+              const m = divMeta[key] ?? divMeta['kependudukan'];
+              const pct = totalRecords > 0 ? Math.round(((divTotals[key] ?? 0) / totalRecords) * 100) : 0;
               return (
                 <button
-                  key={div}
-                  onClick={() => setDivFilter(divFilter === div ? 'semua' : div)}
-                  className={`flex items-center gap-4 px-5 py-4 rounded-xl border text-left ${divFilter === div ? 'border-white/30 bg-white/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
+                  key={key}
+                  onClick={() => setDivFilter(divFilter === key ? 'semua' : key)}
+                  className={`flex items-center gap-4 px-5 py-4 rounded-xl border text-left ${divFilter === key ? 'border-white/30 bg-white/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
                 >
                   <div className={`w-3 h-3 rounded-full ${m.dot} flex-shrink-0`} />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-semibold text-white">{m.label}</div>
-                    <div className="text-xs text-slate-400 mt-0.5">{divisionCounts[div]} petugas · {fmt(divTotals[div])} tugas ({pct}%)</div>
+                    <div className="text-xs text-slate-400 mt-0.5">{divisionCounts[key] ?? 0} petugas · {fmt(divTotals[key])} tugas ({pct}%)</div>
                   </div>
-                  {divFilter === div && (
+                  {divFilter === key && (
                     <svg className="w-4 h-4 text-slate-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                   )}
                 </button>
@@ -1221,9 +1530,9 @@ export default function App() {
               {filtered.map((officer, idx) => {
                 const rank = idx + 1;
                 const badge = sortBy === 'totalRecords' ? getRankBadge(rank) : null;
-                const meta = DIVISION_META[officer.division] ?? DIVISION_META['kependudukan'];
-                const avatarCls = officer.division === 'kependudukan' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700';
-                const hoverCls = officer.division === 'kependudukan' ? 'hover:bg-blue-50/40' : 'hover:bg-emerald-50/40';
+                const meta = divMeta[officer.division] ?? divMeta['kependudukan'] ?? Object.values(divMeta)[0];
+                const avatarCls = `${meta?.light ?? 'bg-slate-100'} ${meta?.color ?? 'text-slate-700'}`;
+                const hoverCls = 'hover:bg-slate-50/40';
                 const initials = (officer.name ?? '').trim().split(' ').map((w: string) => w[0] ?? '').filter(Boolean).slice(0, 2).join('').toUpperCase();
 
                 return (
@@ -1329,5 +1638,6 @@ export default function App() {
       </div>
     </div>
   </ErrorBoundary>
+  </DivMetaContext.Provider>
   );
 }
