@@ -94,6 +94,7 @@ function DayHeatmap({ byDate, division }: { byDate: Record<string, number>; divi
   const firstWeekday = new Date(yearN, monthN - 1, 1).getDay();
   const cells: (string | null)[] = [...Array(firstWeekday).fill(null), ...allDays];
   while (cells.length % 7 !== 0) cells.push(null);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   return (
     <div>
@@ -112,11 +113,19 @@ function DayHeatmap({ byDate, division }: { byDate: Record<string, number>; divi
           const bg = v === 0 ? '#f1f5f9' : `rgba(${rgb},${a.toFixed(2)})`;
           const light = a < 0.55;
           const dayNum = d.split('-')[2];
+          const isSelected = selectedDay === d;
           return (
             <div key={d} className="relative group">
               <div
-                className="rounded-lg flex flex-col items-center justify-center py-1.5 cursor-default transition-transform hover:scale-105"
-                style={{ backgroundColor: bg, minHeight: '3rem' }}
+                onClick={() => setSelectedDay(isSelected ? null : d)}
+                className={`rounded-lg flex flex-col items-center justify-center py-1.5 cursor-pointer select-none
+                  transition-all duration-150 hover:scale-105 active:scale-90 touch-manipulation
+                  ${isSelected ? 'ring-2 ring-offset-1 scale-105 shadow-md' : ''}`}
+                style={{
+                  backgroundColor: bg,
+                  minHeight: '3rem',
+                  ...(isSelected ? { outline: `2px solid rgba(${rgb},0.8)`, outlineOffset: '2px' } : {}),
+                }}
               >
                 <span className={`text-sm font-bold tabular-nums leading-none ${light ? 'text-slate-600' : 'text-white'}`}>
                   {dayNum}
@@ -127,11 +136,14 @@ function DayHeatmap({ byDate, division }: { byDate: Record<string, number>; divi
                   </span>
                 )}
               </div>
-              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2.5 py-1.5 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg">
-                {dayNum} {MONTH_FULL[month]} {year}
+              {/* Tooltip: hover (desktop) or tap (mobile) */}
+              <div className={`absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2.5 py-1.5 rounded-lg whitespace-nowrap transition-opacity pointer-events-none z-20 shadow-lg
+                ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                <div className="font-semibold">{dayNum} {MONTH_FULL[month]} {year}</div>
                 {v > 0
-                  ? <> — <span className="font-semibold">{fmt(v)} tugas</span></>
-                  : <span className="text-slate-400"> — tidak aktif</span>}
+                  ? <div className="text-slate-300 mt-0.5">{fmt(v)} tugas</div>
+                  : <div className="text-slate-400 mt-0.5">Tidak aktif</div>}
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
               </div>
             </div>
           );
@@ -697,7 +709,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] overflow-x-hidden">
+    <div className="min-h-screen bg-[#f8fafc]">
 
       {/* Admin Login Modal */}
       {showLoginModal && (
@@ -1036,7 +1048,7 @@ export default function App() {
       </header>
 
       {/* Search + sort */}
-      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm overflow-x-hidden">
+      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-8 py-3 flex flex-col sm:flex-row gap-2 sm:gap-3 items-start sm:items-center justify-between">
           <div className="relative w-full sm:w-80">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
@@ -1124,12 +1136,7 @@ export default function App() {
                     axisLine={false}
                     tickLine={false}
                   />
-                  <Tooltip
-                    cursor={{ fill: '#f8fafc' }}
-                    contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}
-                    formatter={(v) => [fmt(Number(v ?? 0)), 'Total Tugas']}
-                    labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName ?? ''}
-                  />
+                  <Tooltip active={false} />
                   <Bar dataKey="records" radius={[0, 6, 6, 0]} style={{ cursor: 'pointer' }}
                     onClick={(_data, index) => {
                       const o = top5[index];
@@ -1182,8 +1189,7 @@ export default function App() {
                   <button
                     key={officer.username}
                     onClick={() => setSelected(officer)}
-                    className={`w-full text-left px-4 sm:px-5 py-4 ${hoverCls} transition-colors group animate-fade-up`}
-                    style={{ animationDelay: `${Math.min(idx * 28, 420)}ms` }}
+                    className={`w-full text-left px-4 sm:px-5 py-4 ${hoverCls} transition-colors group`}
                   >
                     {/* Mobile */}
                     <div className="sm:hidden flex items-center gap-3">
