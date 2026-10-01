@@ -187,20 +187,20 @@ function exportOfficerCSV(officer: Officer, monthLabel: string) {
 
   rows.push('RINCIAN PER HARI');
   rows.push('Tanggal,Jumlah Tugas');
-  Object.keys(officer.byDate).sort().forEach(d => {
+  Object.keys(officer.byDate ?? {}).sort().forEach(d => {
     const [y, m, day] = d.split('-');
-    rows.push(`${day}/${m}/${y},${officer.byDate[d]}`);
+    rows.push(`${day}/${m}/${y},${(officer.byDate ?? {})[d]}`);
   });
   rows.push('');
 
   rows.push('LAYANAN TERBANYAK');
   rows.push('Layanan,Jumlah');
-  officer.topServices.forEach(([svc, cnt]) => rows.push(`"${svc}",${cnt}`));
+  (officer.topServices ?? []).forEach(([svc, cnt]) => rows.push(`"${svc}",${cnt}`));
   rows.push('');
 
   rows.push('LAYANAN KINERJA');
   rows.push('Layanan Kinerja,Jumlah');
-  officer.topProcesses.forEach(([proc, cnt]) => rows.push(`"${proc}",${cnt}`));
+  (officer.topProcesses ?? []).forEach(([proc, cnt]) => rows.push(`"${proc}",${cnt}`));
 
   const blob = new Blob(['﻿' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -213,7 +213,10 @@ function exportOfficerCSV(officer: Officer, monthLabel: string) {
 
 function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => void }) {
   const meta = DIVISION_META[officer.division] ?? DIVISION_META['kependudukan'];
-  const activeDates = Object.keys(officer.byDate).sort();
+  const byDate = officer.byDate ?? {};
+  const topServices = officer.topServices ?? [];
+  const topProcesses = officer.topProcesses ?? [];
+  const activeDates = Object.keys(byDate).sort();
   const monthLabel = (() => {
     const first = activeDates[0];
     if (!first) return '';
@@ -223,8 +226,8 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
 
   const totalDays = activeDates.length;
   const avgPerDay = totalDays > 0 ? Math.round(officer.totalRecords / totalDays) : 0;
-  const maxDay = Math.max(...Object.values(officer.byDate));
-  const maxSvc = officer.topServices[0]?.[1] ?? 1;
+  const maxDay = Object.values(byDate).length > 0 ? Math.max(...Object.values(byDate)) : 0;
+  const maxSvc = topServices[0]?.[1] ?? 1;
   const bar1 = officer.division === 'kependudukan' ? 'bg-blue-500' : 'bg-emerald-500';
   const bar2 = officer.division === 'kependudukan' ? 'bg-blue-300' : 'bg-emerald-300';
   const acc = officer.division === 'kependudukan' ? 'text-blue-600' : 'text-emerald-600';
@@ -293,7 +296,7 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
 
         <div className="bg-white rounded-2xl border border-slate-200 p-6 animate-fade-up" style={{ animationDelay: '400ms' }}>
           <h2 className="text-xs font-semibold text-slate-500 mb-4 uppercase tracking-widest">Aktivitas Harian — {monthLabel}</h2>
-          <DayHeatmap byDate={officer.byDate} division={officer.division} />
+          <DayHeatmap byDate={byDate} division={officer.division} />
           <div className="flex items-center gap-2 mt-4">
             <span className="text-xs text-slate-400">Tidak aktif</span>
             {[0.12,0.35,0.58,0.78,1.0].map(v => (
@@ -310,7 +313,7 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
             <BarChart
               data={activeDates.map(d => ({
                 date: d.split('-')[2] + '/' + d.split('-')[1],
-                records: officer.byDate[d],
+                records: byDate[d],
               }))}
               margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
               barSize={14}
@@ -339,14 +342,14 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
             const palette = officer.division === 'kependudukan'
               ? ['#1d4ed8','#3b82f6','#60a5fa','#93c5fd','#bfdbfe']
               : ['#059669','#10b981','#34d399','#6ee7b7','#a7f3d0'];
-            const svcTotal = officer.topServices.reduce((s, [, v]) => s + v, 0);
+            const svcTotal = topServices.reduce((s, [, v]) => s + v, 0);
             return (
               <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
                 <div className="flex-shrink-0 w-44 h-44">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={officer.topServices.map(([name, value]) => ({ name, value }))}
+                        data={topServices.map(([name, value]) => ({ name, value }))}
                         cx="50%"
                         cy="50%"
                         innerRadius={52}
@@ -356,7 +359,7 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
                         startAngle={90}
                         endAngle={-270}
                       >
-                        {officer.topServices.map((_, i) => (
+                        {topServices.map((_, i) => (
                           <PieCell key={i} fill={palette[i % palette.length]} stroke="none" />
                         ))}
                       </Pie>
@@ -368,7 +371,7 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
                   </ResponsiveContainer>
                 </div>
                 <div className="flex-1 min-w-0 space-y-3">
-                  {officer.topServices.map(([svc, cnt], i) => {
+                  {topServices.map(([svc, cnt], i) => {
                     const pct = svcTotal > 0 ? Math.round((cnt / svcTotal) * 100) : 0;
                     return (
                       <div key={i} className="flex items-start gap-2.5">
@@ -395,7 +398,7 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
         <div className="bg-white rounded-2xl border border-slate-200 p-6 animate-fade-up" style={{ animationDelay: '600ms' }}>
           <h2 className="text-xs font-semibold text-slate-500 mb-4 uppercase tracking-widest">Layanan Terbanyak</h2>
           <div className="space-y-3.5">
-            {officer.topServices.map(([svc, cnt]) => (
+            {topServices.map(([svc, cnt]) => (
               <div key={svc}>
                 <div className="flex justify-between items-baseline mb-1.5">
                   <span className="text-sm text-slate-700 leading-snug pr-4">{svc}</span>
@@ -412,7 +415,7 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
         <div className="bg-white rounded-2xl border border-slate-200 p-6 animate-fade-up" style={{ animationDelay: '660ms' }}>
           <h2 className="text-xs font-semibold text-slate-500 mb-4 uppercase tracking-widest">Layanan Kinerja</h2>
           <div className="space-y-3">
-            {officer.topProcesses.map(([proc, cnt]) => (
+            {topProcesses.map(([proc, cnt]) => (
               <div key={proc} className="flex items-center gap-4">
                 <div className="flex-1 text-sm text-slate-700">{proc}</div>
                 <div className="text-sm font-semibold tabular-nums text-slate-900 flex-shrink-0">{fmt(cnt)}</div>
@@ -425,7 +428,7 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
         </div>
 
         {(() => {
-          const vals = activeDates.map(d => officer.byDate[d]);
+          const vals = activeDates.map(d => byDate[d]);
           const maxVal = Math.max(...vals);
           const minVal = Math.min(...vals);
           const maxDate = activeDates[vals.indexOf(maxVal)];
@@ -454,7 +457,7 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
                 </thead>
                 <tbody>
                   {activeDates.map((d, i) => {
-                    const v = officer.byDate[d];
+                    const v = byDate[d];
                     const isMax = d === maxDate;
                     const isMin = d === minDate;
                     const rowBg = i % 2 === 1 ? 'bg-slate-50/40' : '';
@@ -500,17 +503,26 @@ function useIsMobile() {
 }
 
 function useWIBClock() {
-  const getWIB = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
-  const [time, setTime] = useState(getWIB);
+  const fmt = () => {
+    try {
+      return new Intl.DateTimeFormat('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+      }).format(new Date());
+    } catch {
+      return new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    }
+  };
+  const [clock, setClock] = useState(fmt);
   useEffect(() => {
-    const id = setInterval(() => setTime(getWIB()), 1000);
+    const id = setInterval(() => setClock(fmt()), 1000);
     return () => clearInterval(id);
   }, []);
-  return time.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  return clock;
 }
 
 export default function App() {
-  const clock = useWIBClock();
+  const wibClock = useWIBClock();
   const isMobile = useIsMobile();
   const [monthData, setMonthData] = useState<Record<string, Officer[]>>({ '2026-08': defaultOfficers });
   const [activeMonth, setActiveMonth] = useState('2026-08');
@@ -966,7 +978,7 @@ export default function App() {
               </h1>
               <p className="text-slate-400 text-sm mt-1 animate-fade-up" style={{ animationDelay: '120ms' }}>{monthLabel} · {activeOfficers.length} petugas aktif</p>
               <p className="text-slate-300 text-sm font-mono tabular-nums mt-1 animate-fade-up" style={{ animationDelay: '150ms' }}>
-                WIB {clock}
+                WIB {wibClock}
               </p>
             </div>
             <div className="flex flex-wrap items-end gap-2 sm:gap-3">
@@ -1262,7 +1274,7 @@ export default function App() {
                       </div>
 
                       <div className="pr-3">
-                        {officer.topServices[0] && (
+                        {(officer.topServices ?? [])[0] && (
                           <>
                             <span className="text-xs text-slate-700 leading-snug line-clamp-2">{officer.topServices[0][0]}</span>
                             {officer.topServices[1] && (
