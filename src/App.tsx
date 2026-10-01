@@ -500,6 +500,14 @@ export default function App() {
   const [sortBy, setSortBy] = useState<'name' | 'totalRecords'>('name');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Admin CRUD
+  const [editingOfficer, setEditingOfficer] = useState<Officer | null>(null);
+  const [editForm, setEditForm] = useState<{ name: string; username: string; division: Division }>({ name: '', username: '', division: 'kependudukan' });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [deletingOfficer, setDeletingOfficer] = useState<Officer | null>(null);
+  const [deleteConfirming, setDeleteConfirming] = useState(false);
+
   // Load data from Supabase on mount + Realtime subscription
   useEffect(() => {
     if (!supabase) { setSyncLoading(false); return; }
@@ -620,6 +628,58 @@ export default function App() {
       setUploading(false);
     }
   }, []);
+
+  const handleStartEdit = (officer: Officer) => {
+    setEditingOfficer(officer);
+    setEditForm({ name: officer.name, username: officer.username, division: officer.division });
+    setEditError(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingOfficer) return;
+    const name = editForm.name.trim();
+    const username = editForm.username.trim();
+    if (!name || !username) { setEditError('Nama dan username tidak boleh kosong.'); return; }
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const updated = (monthData[activeMonth] ?? []).map(o =>
+        o.username === editingOfficer.username
+          ? { ...o, name, username, division: editForm.division }
+          : o
+      );
+      setMonthData(prev => ({ ...prev, [activeMonth]: updated }));
+      if (supabase) {
+        await supabase.from('rekap_data').upsert(
+          { month_key: activeMonth, officers: updated, updated_at: new Date().toISOString() },
+          { onConflict: 'month_key' }
+        );
+      }
+      setEditingOfficer(null);
+    } catch {
+      setEditError('Gagal menyimpan. Periksa koneksi.');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleDeleteOfficer = async () => {
+    if (!deletingOfficer) return;
+    setDeleteConfirming(true);
+    try {
+      const updated = (monthData[activeMonth] ?? []).filter(o => o.username !== deletingOfficer.username);
+      setMonthData(prev => ({ ...prev, [activeMonth]: updated }));
+      if (supabase) {
+        await supabase.from('rekap_data').upsert(
+          { month_key: activeMonth, officers: updated, updated_at: new Date().toISOString() },
+          { onConflict: 'month_key' }
+        );
+      }
+      setDeletingOfficer(null);
+    } finally {
+      setDeleteConfirming(false);
+    }
+  };
 
   if (selected) {
     return <OfficerDetail officer={selected} onBack={() => setSelected(null)} />;
@@ -774,6 +834,83 @@ export default function App() {
                   ))}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Officer Modal */}
+      {editingOfficer && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          onClick={e => { if (e.target === e.currentTarget) setEditingOfficer(null); }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-scale-in">
+            <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Edit Petugas</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Perubahan langsung tersimpan ke semua pengguna</p>
+              </div>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nama Lengkap</label>
+                <input type="text" value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                  className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Username</label>
+                <input type="text" value={editForm.username} onChange={e => setEditForm(f => ({ ...f, username: e.target.value }))}
+                  className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition font-mono" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Bidang</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['kependudukan', 'pencatatan_sipil'] as Division[]).map(div => (
+                    <button key={div} type="button"
+                      onClick={() => setEditForm(f => ({ ...f, division: div }))}
+                      className={`py-2.5 rounded-xl text-xs font-semibold border transition-all ${editForm.division === div
+                        ? div === 'kependudukan' ? 'bg-blue-600 text-white border-blue-600' : 'bg-emerald-600 text-white border-emerald-600'
+                        : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>
+                      {DIVISION_META[div].label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {editError && <p className="text-xs text-red-500 font-medium bg-red-50 border border-red-100 rounded-lg px-3 py-2">{editError}</p>}
+            </div>
+            <div className="px-6 pb-6 flex gap-3">
+              <button onClick={() => setEditingOfficer(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">Batal</button>
+              <button onClick={handleSaveEdit} disabled={editSaving} className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+                {editSaving && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingOfficer && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          onClick={e => { if (e.target === e.currentTarget && !deleteConfirming) setDeletingOfficer(null); }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-scale-in">
+            <div className="p-6 text-center">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+              </div>
+              <h2 className="text-base font-bold text-slate-900 mb-1">Hapus Petugas?</h2>
+              <p className="text-sm text-slate-500">
+                Yakin ingin menghapus <span className="font-semibold text-slate-700">{deletingOfficer.name}</span>? Tindakan ini tidak dapat dibatalkan.
+              </p>
+            </div>
+            <div className="px-6 pb-6 flex gap-3">
+              <button onClick={() => setDeletingOfficer(null)} disabled={deleteConfirming} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">Batal</button>
+              <button onClick={handleDeleteOfficer} disabled={deleteConfirming} className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+                {deleteConfirming && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                Hapus
+              </button>
             </div>
           </div>
         </div>
@@ -956,59 +1093,60 @@ export default function App() {
                   <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-sm bg-emerald-400" /><span className="text-xs text-slate-500">Catatan Sipil</span></div>
                 </div>
               </div>
-              <div className="overflow-x-auto -mx-6 px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <div className="min-w-[380px]">
-                  <ResponsiveContainer width="100%" height={260}>
-                    <BarChart
-                      layout="vertical"
-                      data={top5.map((o, i) => ({
-                        name: o.name.length > 20 ? o.name.slice(0, 20) + '…' : o.name,
-                        fullName: o.name,
-                        records: o.totalRecords,
-                        rank: i + 1,
-                        division: o.division,
-                      }))}
-                      margin={{ top: 4, right: 70, left: 4, bottom: 4 }}
-                      barSize={32}
-                      barCategoryGap="30%"
-                    >
-                      <CartesianGrid strokeDasharray="2 4" stroke="#f1f5f9" horizontal={false} />
-                      <XAxis
-                        type="number"
-                        tick={{ fontSize: 10, fill: '#94a3b8' }}
-                        axisLine={false}
-                        tickLine={false}
-                        tickFormatter={v => fmt(v as number)}
-                      />
-                      <YAxis
-                        type="category"
-                        dataKey="name"
-                        width={130}
-                        tick={{ fontSize: 11, fill: '#334155', fontWeight: 500 }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <Tooltip
-                        cursor={{ fill: '#f8fafc' }}
-                        contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}
-                        formatter={(v) => [fmt(Number(v ?? 0)), 'Total Tugas']}
-                        labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName ?? ''}
-                      />
-                      <Bar dataKey="records" radius={[0, 6, 6, 0]}>
-                        {top5.map((o, i) => (
-                          <PieCell key={i} fill={o.division === 'kependudukan' ? '#3b82f6' : '#10b981'} />
-                        ))}
-                        <LabelList
-                          dataKey="records"
-                          position="right"
-                          style={{ fontSize: 12, fontWeight: 700, fill: '#334155' }}
-                          formatter={(v) => fmt(Number(v ?? 0))}
-                        />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  layout="vertical"
+                  data={top5.map((o, i) => ({
+                    name: o.username,
+                    fullName: o.name,
+                    username: o.username,
+                    records: o.totalRecords,
+                    rank: i + 1,
+                    division: o.division,
+                  }))}
+                  margin={{ top: 4, right: isMobile ? 60 : 90, left: 4, bottom: 4 }}
+                  barSize={32}
+                  barCategoryGap="30%"
+                >
+                  <CartesianGrid strokeDasharray="2 4" stroke="#f1f5f9" horizontal={false} />
+                  <XAxis
+                    type="number"
+                    tick={{ fontSize: 10, fill: '#94a3b8' }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={v => fmt(v as number)}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={isMobile ? 90 : 110}
+                    tick={{ fontSize: isMobile ? 10 : 11, fill: '#334155', fontWeight: 500 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: '#f8fafc' }}
+                    contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}
+                    formatter={(v) => [fmt(Number(v ?? 0)), 'Total Tugas']}
+                    labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName ?? ''}
+                  />
+                  <Bar dataKey="records" radius={[0, 6, 6, 0]} style={{ cursor: 'pointer' }}
+                    onClick={(_data, index) => {
+                      const o = top5[index];
+                      if (o) setSelected(o);
+                    }}>
+                    {top5.map((o, i) => (
+                      <PieCell key={i} fill={o.division === 'kependudukan' ? '#3b82f6' : '#10b981'} />
+                    ))}
+                    <LabelList
+                      dataKey="records"
+                      position="right"
+                      style={{ fontSize: isMobile ? 11 : 12, fontWeight: 700, fill: '#334155' }}
+                      formatter={(v) => fmt(Number(v ?? 0))}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
         );
@@ -1017,12 +1155,13 @@ export default function App() {
       {/* Table */}
       <div className="max-w-6xl mx-auto px-4 sm:px-8 py-6">
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden animate-fade-up" style={{ animationDelay: '160ms' }}>
-          <div className="hidden sm:grid grid-cols-[2.5rem_1fr_1fr_9rem_7rem] px-5 py-3 bg-slate-50 border-b border-slate-100">
+          <div className={`hidden sm:grid px-5 py-3 bg-slate-50 border-b border-slate-100 ${isAdmin ? 'grid-cols-[2.5rem_1fr_1fr_9rem_7rem_5rem]' : 'grid-cols-[2.5rem_1fr_1fr_9rem_7rem]'}`}>
             <div />
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Nama Petugas</div>
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Layanan</div>
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Kinerja</div>
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">Total Tugas</div>
+            {isAdmin && <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">Aksi</div>}
           </div>
 
           {filtered.length === 0 ? (
@@ -1056,14 +1195,28 @@ export default function App() {
                           <span className={`text-xs ${meta.color}`}>{meta.short}</span>
                         </div>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className={`font-bold text-sm tabular-nums ${meta.color}`}>{fmt(officer.totalRecords)}</div>
-                        {badge && <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${badge.cls}`}>{badge.label}</span>}
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <div className="text-right mr-1">
+                          <div className={`font-bold text-sm tabular-nums ${meta.color}`}>{fmt(officer.totalRecords)}</div>
+                          {badge && <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${badge.cls}`}>{badge.label}</span>}
+                        </div>
+                        {isAdmin && (
+                          <>
+                            <button onClick={e => { e.stopPropagation(); handleStartEdit(officer); }}
+                              className="p-1.5 rounded-lg hover:bg-blue-100 text-blue-400 transition-colors flex-shrink-0">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+                            </button>
+                            <button onClick={e => { e.stopPropagation(); setDeletingOfficer(officer); }}
+                              className="p-1.5 rounded-lg hover:bg-red-100 text-red-400 transition-colors flex-shrink-0">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
 
                     {/* Desktop */}
-                    <div className="hidden sm:grid grid-cols-[2.5rem_1fr_1fr_9rem_7rem] items-center gap-0">
+                    <div className={`hidden sm:grid items-center gap-0 ${isAdmin ? 'grid-cols-[2.5rem_1fr_1fr_9rem_7rem_5rem]' : 'grid-cols-[2.5rem_1fr_1fr_9rem_7rem]'}`}>
                       <div>
                         {badge
                           ? <span className={`text-xs px-1.5 py-0.5 rounded-md font-bold ${badge.cls}`}>{badge.label}</span>
@@ -1103,6 +1256,18 @@ export default function App() {
                         <span className={`font-bold tabular-nums text-sm ${meta.color}`}>{fmt(officer.totalRecords)}</span>
                         <svg className="w-3 h-3 text-slate-300 inline ml-1 group-hover:text-slate-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                       </div>
+                      {isAdmin && (
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={e => { e.stopPropagation(); handleStartEdit(officer); }}
+                            className="p-1.5 rounded-lg hover:bg-blue-100 text-blue-400 transition-colors" title="Edit">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+                          </button>
+                          <button onClick={e => { e.stopPropagation(); setDeletingOfficer(officer); }}
+                            className="p-1.5 rounded-lg hover:bg-red-100 text-red-400 transition-colors" title="Hapus">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </button>
                 );
