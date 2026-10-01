@@ -471,6 +471,25 @@ export default function App() {
   const [activeMonth, setActiveMonth] = useState('2026-08');
   const [syncLoading, setSyncLoading] = useState(true);
 
+  // Admin session — persisted in sessionStorage
+  const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem('__adminSession__') === '1');
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginInput, setLoginInput] = useState('');
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [loginVisible, setLoginVisible] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  const [showUpload, setShowUpload] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<Officer | null>(null);
+  const [divFilter, setDivFilter] = useState<DivisionFilter>('semua');
+  const [sortBy, setSortBy] = useState<'name' | 'totalRecords'>('name');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load data from Supabase on mount + Realtime subscription
   useEffect(() => {
     supabase
       .from('rekap_data')
@@ -484,22 +503,23 @@ export default function App() {
         }
         setSyncLoading(false);
       });
-  }, []);
-  const [showUpload, setShowUpload] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<Officer | null>(null);
-  const [divFilter, setDivFilter] = useState<DivisionFilter>('semua');
-  const [sortBy, setSortBy] = useState<'name' | 'totalRecords'>('name');
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Password gate
-  const [showPassModal, setShowPassModal] = useState(false);
-  const [passInput, setPassInput] = useState('');
-  const [passError, setPassError] = useState<string | null>(null);
-  const [passVisible, setPassVisible] = useState(false);
+    // Realtime: auto-update all users when admin uploads
+    const channel = supabase
+      .channel('rekap_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rekap_data' }, (payload) => {
+        const row = payload.new as { month_key: string; officers: Officer[] };
+        if (row?.month_key) {
+          setMonthData(prev => ({ ...prev, [row.month_key]: row.officers }));
+          setActiveMonth(() => {
+            return row.month_key;
+          });
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const availableMonths = useMemo(() => Object.keys(monthData).sort().reverse(), [monthData]);
   const activeOfficers = useMemo(() => monthData[activeMonth] ?? [], [monthData, activeMonth]);
@@ -535,32 +555,35 @@ export default function App() {
     return list;
   }, [activeOfficers, divFilter, search, sortBy]);
 
-  const handleUploadClick = () => {
-    setPassError(null);
-    setPassInput('');
-    setPassVisible(false);
-    setShowPassModal(true);
-  };
-
-  const handlePassSubmit = async () => {
-    setPassError(null);
+  const handleLoginSubmit = async () => {
+    setLoginLoading(true);
+    setLoginError(null);
     try {
       const { data, error } = await supabase
         .from('admin_config')
         .select('password_hash')
         .eq('id', 1)
         .single();
-      if (error || !data) { setPassError('Gagal memuat konfigurasi admin.'); return; }
-      if (passInput !== data.password_hash) {
-        setPassError('Password salah. Coba lagi.');
+      if (error || !data) { setLoginError('Gagal memuat konfigurasi admin.'); return; }
+      if (loginInput !== data.password_hash) {
+        setLoginError('Password salah. Coba lagi.');
         return;
       }
-      setShowPassModal(false);
-      setShowUpload(true);
-      setUploadError(null);
+      sessionStorage.setItem('__adminSession__', '1');
+      setIsAdmin(true);
+      setShowLoginModal(false);
+      setLoginInput('');
     } catch {
-      setPassError('Koneksi gagal. Periksa jaringan.');
+      setLoginError('Koneksi gagal. Periksa jaringan.');
+    } finally {
+      setLoginLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('__adminSession__');
+    setIsAdmin(false);
+    setShowUpload(false);
   };
 
   const handleFile = useCallback(async (file: File) => {
@@ -604,67 +627,55 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#f8fafc]">
 
-      {/* Password Gate Modal */}
-      {showPassModal && (
+      {/* Admin Login Modal */}
+      {showLoginModal && (
         <div
           className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
-          onClick={e => { if (e.target === e.currentTarget) setShowPassModal(false); }}
+          onClick={e => { if (e.target === e.currentTarget) { setShowLoginModal(false); setLoginInput(''); setLoginError(null); } }}
         >
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-scale-in">
             <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
                 <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                 </svg>
               </div>
               <div>
-                <h2 className="text-base font-bold text-slate-900">Upload Rekap — Admin</h2>
-                <p className="text-xs text-slate-400 mt-0.5">Masukkan password admin untuk melanjutkan</p>
+                <h2 className="text-base font-bold text-slate-900">Login Admin</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Masukkan password untuk akses fitur admin</p>
               </div>
             </div>
 
             <div className="px-6 py-5 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Password Admin</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Password</label>
                 <div className="relative">
                   <input
-                    type={passVisible ? 'text' : 'password'}
-                    value={passInput}
-                    onChange={e => { setPassInput(e.target.value); setPassError(null); }}
-                    onKeyDown={e => { if (e.key === 'Enter') handlePassSubmit(); }}
-                    placeholder="Masukkan password…"
+                    type={loginVisible ? 'text' : 'password'}
+                    value={loginInput}
+                    onChange={e => { setLoginInput(e.target.value); setLoginError(null); }}
+                    onKeyDown={e => { if (e.key === 'Enter') handleLoginSubmit(); }}
+                    placeholder="Masukkan password admin…"
                     autoFocus
                     className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setPassVisible(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                  >
-                    {passVisible
+                  <button type="button" onClick={() => setLoginVisible(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                    {loginVisible
                       ? <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" /></svg>
                       : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                     }
                   </button>
                 </div>
               </div>
-
-              {passError && (
-                <p className="text-xs text-red-500 font-medium bg-red-50 border border-red-100 rounded-lg px-3 py-2">{passError}</p>
-              )}
+              {loginError && <p className="text-xs text-red-500 font-medium bg-red-50 border border-red-100 rounded-lg px-3 py-2">{loginError}</p>}
             </div>
 
             <div className="px-6 pb-6 flex gap-3">
-              <button
-                onClick={() => setShowPassModal(false)}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-              >
+              <button onClick={() => { setShowLoginModal(false); setLoginInput(''); setLoginError(null); }} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
                 Batal
               </button>
-              <button
-                onClick={handlePassSubmit}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
-              >
+              <button onClick={handleLoginSubmit} disabled={loginLoading} className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+                {loginLoading && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                 Masuk
               </button>
             </div>
@@ -774,18 +785,37 @@ export default function App() {
                 WIB {clock}
               </p>
             </div>
-            <div className="flex items-end gap-4">
+            <div className="flex items-end gap-3">
               <div className="text-right pb-1 animate-fade-up" style={{ animationDelay: '180ms' }}>
                 <div className="text-2xl font-bold tabular-nums">{fmt(totalRecords)}</div>
                 <div className="text-xs text-slate-400">Total Tugas</div>
               </div>
-              <button
-                onClick={handleUploadClick}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-sm font-medium text-white transition-colors whitespace-nowrap"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" /></svg>
-                Upload Rekap
-              </button>
+              {isAdmin ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/30">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span className="text-xs font-semibold text-emerald-300">Admin</span>
+                  </div>
+                  <button
+                    onClick={() => { setShowUpload(true); setUploadError(null); }}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-sm font-medium text-white transition-colors whitespace-nowrap"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" /></svg>
+                    Upload Rekap
+                  </button>
+                  <button onClick={handleLogout} className="px-3 py-2.5 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-xs font-medium text-slate-300 transition-colors whitespace-nowrap">
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setShowLoginModal(true); setLoginInput(''); setLoginError(null); }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-sm font-medium text-white transition-colors whitespace-nowrap"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+                  Login Admin
+                </button>
+              )}
             </div>
           </div>
 
