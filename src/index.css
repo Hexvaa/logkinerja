@@ -57,6 +57,15 @@
 
 *, *::before, *::after {
   box-sizing: border-box;
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+/* Keep loading spinners working */
+.animate-spin {
+  animation-duration: 0.75s !important;
+  animation-iteration-count: infinite !important;
 }
 
 html {
