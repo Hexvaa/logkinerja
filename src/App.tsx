@@ -455,6 +455,16 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
   );
 }
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  return isMobile;
+}
+
 function useWIBClock() {
   const getWIB = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
   const [time, setTime] = useState(getWIB);
@@ -467,6 +477,7 @@ function useWIBClock() {
 
 export default function App() {
   const clock = useWIBClock();
+  const isMobile = useIsMobile();
   const [monthData, setMonthData] = useState<Record<string, Officer[]>>({ '2026-08': defaultOfficers });
   const [activeMonth, setActiveMonth] = useState('2026-08');
   const [syncLoading, setSyncLoading] = useState(true);
@@ -491,6 +502,8 @@ export default function App() {
 
   // Load data from Supabase on mount + Realtime subscription
   useEffect(() => {
+    if (!supabase) { setSyncLoading(false); return; }
+
     supabase
       .from('rekap_data')
       .select('month_key, officers')
@@ -511,14 +524,12 @@ export default function App() {
         const row = payload.new as { month_key: string; officers: Officer[] };
         if (row?.month_key) {
           setMonthData(prev => ({ ...prev, [row.month_key]: row.officers }));
-          setActiveMonth(() => {
-            return row.month_key;
-          });
+          setActiveMonth(() => row.month_key);
         }
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { supabase?.removeChannel(channel); };
   }, []);
 
   const availableMonths = useMemo(() => Object.keys(monthData).sort().reverse(), [monthData]);
@@ -556,6 +567,7 @@ export default function App() {
   }, [activeOfficers, divFilter, search, sortBy]);
 
   const handleLoginSubmit = async () => {
+    if (!supabase) { setLoginError('Supabase tidak terkonfigurasi.'); return; }
     setLoginLoading(true);
     setLoginError(null);
     try {
@@ -595,7 +607,7 @@ export default function App() {
       setMonthData(prev => ({ ...prev, [monthKey]: newOfficers }));
       setActiveMonth(monthKey);
       // Sync to Supabase so all users see the new data
-      await supabase.from('rekap_data').upsert(
+      if (supabase) await supabase.from('rekap_data').upsert(
         { month_key: monthKey, officers: newOfficers, updated_at: new Date().toISOString() },
         { onConflict: 'month_key' }
       );
@@ -625,7 +637,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc]">
+    <div className="min-h-screen bg-[#f8fafc] overflow-x-hidden">
 
       {/* Admin Login Modal */}
       {showLoginModal && (
@@ -785,34 +797,34 @@ export default function App() {
                 WIB {clock}
               </p>
             </div>
-            <div className="flex items-end gap-3">
+            <div className="flex flex-wrap items-end gap-2 sm:gap-3">
               <div className="text-right pb-1 animate-fade-up" style={{ animationDelay: '180ms' }}>
                 <div className="text-2xl font-bold tabular-nums">{fmt(totalRecords)}</div>
                 <div className="text-xs text-slate-400">Total Tugas</div>
               </div>
               {isAdmin ? (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/30">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                     <span className="text-xs font-semibold text-emerald-300">Admin</span>
                   </div>
                   <button
                     onClick={() => { setShowUpload(true); setUploadError(null); }}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-sm font-medium text-white transition-colors whitespace-nowrap"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs sm:text-sm font-medium text-white transition-colors whitespace-nowrap"
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" /></svg>
-                    Upload Rekap
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" /></svg>
+                    Upload
                   </button>
-                  <button onClick={handleLogout} className="px-3 py-2.5 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-xs font-medium text-slate-300 transition-colors whitespace-nowrap">
+                  <button onClick={handleLogout} className="px-2.5 py-2 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-xs font-medium text-slate-300 transition-colors whitespace-nowrap">
                     Logout
                   </button>
                 </div>
               ) : (
                 <button
                   onClick={() => { setShowLoginModal(true); setLoginInput(''); setLoginError(null); }}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-sm font-medium text-white transition-colors whitespace-nowrap"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs sm:text-sm font-medium text-white transition-colors whitespace-nowrap"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
                   Login Admin
                 </button>
               )}
@@ -871,12 +883,12 @@ export default function App() {
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-0 border-b border-white/10">
+          <div className="flex gap-0 border-b border-white/10 overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {tabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setDivFilter(tab.id)}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${divFilter === tab.id ? `${tab.active} bg-white/5` : 'border-transparent text-slate-400 hover:text-white'}`}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${divFilter === tab.id ? `${tab.active} bg-white/5` : 'border-transparent text-slate-400 hover:text-white'}`}
               >
                 {tab.label}
                 <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${divFilter === tab.id ? 'bg-white/15' : 'text-slate-500'}`}>{tab.count}</span>
@@ -887,8 +899,8 @@ export default function App() {
       </header>
 
       {/* Search + sort */}
-      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 sm:px-8 py-3 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm overflow-x-hidden">
+        <div className="max-w-6xl mx-auto px-4 sm:px-8 py-3 flex flex-col sm:flex-row gap-2 sm:gap-3 items-start sm:items-center justify-between">
           <div className="relative w-full sm:w-80">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             <input
@@ -899,23 +911,23 @@ export default function App() {
               className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors placeholder:text-slate-400"
             />
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-400 mr-1">Urutkan:</span>
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-xs text-slate-400 mr-0.5">Urutkan:</span>
             <button
               onClick={() => setSortBy('name')}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${sortBy === 'name' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-500'}`}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${sortBy === 'name' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-500'}`}
             >
               {sortBy === 'name' && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>}
               Nama A–Z
             </button>
             <button
               onClick={() => setSortBy('totalRecords')}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${sortBy === 'totalRecords' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-500'}`}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${sortBy === 'totalRecords' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-500'}`}
             >
               {sortBy === 'totalRecords' && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>}
-              Tugas Terbanyak
+              Terbanyak
             </button>
-            <span className="text-slate-300 ml-1">|</span>
+            <span className="text-slate-300">|</span>
             <span className="text-xs text-slate-400">{filtered.length} petugas</span>
           </div>
         </div>
@@ -926,70 +938,77 @@ export default function App() {
         // Use activeOfficers filtered only by division (not search) so chart stays visible while searching
         const chartBase = divFilter === 'semua' ? activeOfficers : activeOfficers.filter(o => o.division === divFilter);
         const top5 = [...chartBase].sort((a, b) => b.totalRecords - a.totalRecords).slice(0, 5);
+        const yAxisW = isMobile ? 90 : 170;
+        const chartMarginRight = isMobile ? 60 : 90;
+        const nameMax = isMobile ? 12 : 26;
         return (
           <div className="max-w-6xl mx-auto px-4 sm:px-8 pt-6">
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 animate-fade-up" style={{ animationDelay: '100ms' }}>
-              <div className="flex items-center justify-between mb-5">
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 animate-fade-up" style={{ animationDelay: '100ms' }}>
+              <div className="flex items-center justify-between mb-4 sm:mb-5 gap-2 flex-wrap">
                 <div>
                   <h2 className="text-sm font-bold text-slate-800">Top 5 Petugas</h2>
                   <p className="text-xs text-slate-400 mt-0.5">
                     {divFilter === 'semua' ? 'Semua Bidang' : divFilter === 'kependudukan' ? 'Kependudukan' : 'Pencatatan Sipil'} · berdasarkan total tugas terbanyak
                   </p>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-blue-400" /><span className="text-xs text-slate-500">Kependudukan</span></div>
-                  <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-emerald-400" /><span className="text-xs text-slate-500">Pencatatan Sipil</span></div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-sm bg-blue-400" /><span className="text-xs text-slate-500">Kepend.</span></div>
+                  <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-sm bg-emerald-400" /><span className="text-xs text-slate-500">Catatan Sipil</span></div>
                 </div>
               </div>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart
-                  layout="vertical"
-                  data={top5.map((o, i) => ({
-                    name: o.name.length > 26 ? o.name.slice(0, 26) + '…' : o.name,
-                    fullName: o.name,
-                    records: o.totalRecords,
-                    rank: i + 1,
-                    division: o.division,
-                  }))}
-                  margin={{ top: 4, right: 90, left: 4, bottom: 4 }}
-                  barSize={32}
-                  barCategoryGap="30%"
-                >
-                  <CartesianGrid strokeDasharray="2 4" stroke="#f1f5f9" horizontal={false} />
-                  <XAxis
-                    type="number"
-                    tick={{ fontSize: 10, fill: '#94a3b8' }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={v => fmt(v as number)}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={170}
-                    tick={{ fontSize: 11, fill: '#334155', fontWeight: 500 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    cursor={{ fill: '#f8fafc' }}
-                    contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}
-                    formatter={(v) => [fmt(Number(v ?? 0)), 'Total Tugas']}
-                    labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName ?? ''}
-                  />
-                  <Bar dataKey="records" radius={[0, 6, 6, 0]}>
-                    {top5.map((o, i) => (
-                      <PieCell key={i} fill={o.division === 'kependudukan' ? '#3b82f6' : '#10b981'} />
-                    ))}
-                    <LabelList
-                      dataKey="records"
-                      position="right"
-                      style={{ fontSize: 12, fontWeight: 700, fill: '#334155' }}
-                      formatter={(v) => fmt(Number(v ?? 0))}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="overflow-x-auto -mx-6 px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="min-w-[380px]">
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart
+                      layout="vertical"
+                      data={top5.map((o, i) => ({
+                        name: o.name.length > 20 ? o.name.slice(0, 20) + '…' : o.name,
+                        fullName: o.name,
+                        records: o.totalRecords,
+                        rank: i + 1,
+                        division: o.division,
+                      }))}
+                      margin={{ top: 4, right: 70, left: 4, bottom: 4 }}
+                      barSize={32}
+                      barCategoryGap="30%"
+                    >
+                      <CartesianGrid strokeDasharray="2 4" stroke="#f1f5f9" horizontal={false} />
+                      <XAxis
+                        type="number"
+                        tick={{ fontSize: 10, fill: '#94a3b8' }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={v => fmt(v as number)}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        width={130}
+                        tick={{ fontSize: 11, fill: '#334155', fontWeight: 500 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        cursor={{ fill: '#f8fafc' }}
+                        contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}
+                        formatter={(v) => [fmt(Number(v ?? 0)), 'Total Tugas']}
+                        labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName ?? ''}
+                      />
+                      <Bar dataKey="records" radius={[0, 6, 6, 0]}>
+                        {top5.map((o, i) => (
+                          <PieCell key={i} fill={o.division === 'kependudukan' ? '#3b82f6' : '#10b981'} />
+                        ))}
+                        <LabelList
+                          dataKey="records"
+                          position="right"
+                          style={{ fontSize: 12, fontWeight: 700, fill: '#334155' }}
+                          formatter={(v) => fmt(Number(v ?? 0))}
+                        />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
             </div>
           </div>
         );
