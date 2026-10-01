@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect, Component, type ReactNode } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell as PieCell, Legend, LabelList,
@@ -6,6 +6,26 @@ import {
 import { officers as defaultOfficers, type Officer, type Division } from './data/officers';
 import { parseFileToOfficers } from './utils/parseFile';
 import { supabase } from './utils/supabase';
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
+  state = { error: null };
+  static getDerivedStateFromError(e: Error) { return { error: e.message }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center gap-4 p-8 text-center">
+          <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+            <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+          </div>
+          <p className="text-sm font-semibold text-slate-700">Terjadi kesalahan. Muat ulang halaman.</p>
+          <p className="text-xs text-slate-400 font-mono break-all max-w-xs">{this.state.error}</p>
+          <button onClick={() => window.location.reload()} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">Muat Ulang</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Fallback dates used only if officer.byDate has no keys
 const FALLBACK_DATES = [
@@ -192,7 +212,7 @@ function exportOfficerCSV(officer: Officer, monthLabel: string) {
 }
 
 function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => void }) {
-  const meta = DIVISION_META[officer.division];
+  const meta = DIVISION_META[officer.division] ?? DIVISION_META['kependudukan'];
   const activeDates = Object.keys(officer.byDate).sort();
   const monthLabel = (() => {
     const first = activeDates[0];
@@ -582,7 +602,7 @@ export default function App() {
     let list = divFilter === 'semua' ? [...activeOfficers] : activeOfficers.filter(o => o.division === divFilter);
     if (q) list = list.filter(o => o.name.toLowerCase().includes(q) || o.username.toLowerCase().includes(q));
     if (sortBy === 'name') list.sort((a, b) => a.name.localeCompare(b.name, 'id'));
-    else list.sort((a, b) => b.totalRecords - a.totalRecords);
+    else list.sort((a, b) => (b.totalRecords ?? 0) - (a.totalRecords ?? 0));
     return list;
   }, [activeOfficers, divFilter, search, sortBy]);
 
@@ -694,7 +714,7 @@ export default function App() {
   };
 
   if (selected) {
-    return <OfficerDetail officer={selected} onBack={() => setSelected(null)} />;
+    return <ErrorBoundary><OfficerDetail officer={selected} onBack={() => setSelected(null)} /></ErrorBoundary>;
   }
 
   const monthLabel = getMonthLabel(activeMonth);
@@ -709,6 +729,7 @@ export default function App() {
   }
 
   return (
+  <ErrorBoundary>
     <div className="min-h-screen bg-[#f8fafc]">
 
       {/* Admin Login Modal */}
@@ -1180,7 +1201,7 @@ export default function App() {
               {filtered.map((officer, idx) => {
                 const rank = idx + 1;
                 const badge = sortBy === 'totalRecords' ? getRankBadge(rank) : null;
-                const meta = DIVISION_META[officer.division];
+                const meta = DIVISION_META[officer.division] ?? DIVISION_META['kependudukan'];
                 const avatarCls = officer.division === 'kependudukan' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700';
                 const hoverCls = officer.division === 'kependudukan' ? 'hover:bg-blue-50/40' : 'hover:bg-emerald-50/40';
                 const initials = officer.name.trim().split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
@@ -1287,5 +1308,6 @@ export default function App() {
         </p>
       </div>
     </div>
+  </ErrorBoundary>
   );
 }
