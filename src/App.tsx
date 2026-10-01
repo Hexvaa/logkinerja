@@ -61,8 +61,8 @@ const MONTH_FULL: Record<string, string> = {
 };
 const DAY_LABELS = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
 
-function fmt(n: number) { return n.toLocaleString('id-ID'); }
-function fmtDate(d: string) { const [y,m,day] = d.split('-'); return `${day}/${m}/${y}`; }
+function fmt(n: number | undefined | null) { return (n ?? 0).toLocaleString('id-ID'); }
+function fmtDate(d: string) { const [y,m,day] = (d ?? '').split('-'); return `${day ?? ''}/${m ?? ''}/${y ?? ''}`; }
 
 function getMonthLabel(monthKey: string): string {
   if (!monthKey) return '';
@@ -272,7 +272,7 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
       <div className="max-w-4xl mx-auto px-4 sm:px-8 py-8 space-y-6">
         <div className="bg-white rounded-2xl border border-slate-200 p-6 flex flex-col sm:flex-row sm:items-start gap-4">
           <div className={`w-14 h-14 rounded-xl ${meta.bg} flex items-center justify-center text-white font-bold text-xl flex-shrink-0`}>
-            {officer.name.trim().split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
+            {(officer.name ?? '').trim().split(' ').map(w => w[0] ?? '').filter(Boolean).slice(0, 2).join('').toUpperCase()}
           </div>
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-slate-900" style={{ fontFamily: "'DM Serif Display', serif" }}>{officer.name}</h1>
@@ -619,8 +619,10 @@ export default function App() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     let list = divFilter === 'semua' ? [...activeOfficers] : activeOfficers.filter(o => o.division === divFilter);
-    if (q) list = list.filter(o => o.name.toLowerCase().includes(q) || o.username.toLowerCase().includes(q));
-    if (sortBy === 'name') list.sort((a, b) => a.name.localeCompare(b.name, 'id'));
+    if (q) list = list.filter(o =>
+      (o.name ?? '').toLowerCase().includes(q) || (o.username ?? '').toLowerCase().includes(q)
+    );
+    if (sortBy === 'name') list.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', 'id'));
     else list.sort((a, b) => (b.totalRecords ?? 0) - (a.totalRecords ?? 0));
     return list;
   }, [activeOfficers, divFilter, search, sortBy]);
@@ -1147,10 +1149,10 @@ export default function App() {
                 <BarChart
                   layout="vertical"
                   data={top5.map((o, i) => ({
-                    name: o.username,
-                    fullName: o.name,
-                    username: o.username,
-                    records: o.totalRecords,
+                    name: o.username ?? '',
+                    fullName: o.name ?? '',
+                    username: o.username ?? '',
+                    records: o.totalRecords ?? 0,
                     rank: i + 1,
                     division: o.division,
                   }))}
@@ -1216,7 +1218,7 @@ export default function App() {
                 const meta = DIVISION_META[officer.division] ?? DIVISION_META['kependudukan'];
                 const avatarCls = officer.division === 'kependudukan' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700';
                 const hoverCls = officer.division === 'kependudukan' ? 'hover:bg-blue-50/40' : 'hover:bg-emerald-50/40';
-                const initials = officer.name.trim().split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
+                const initials = (officer.name ?? '').trim().split(' ').map((w: string) => w[0] ?? '').filter(Boolean).slice(0, 2).join('').toUpperCase();
 
                 return (
                   <button
