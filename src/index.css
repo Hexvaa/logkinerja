@@ -2,6 +2,7 @@
 @import 'tailwindcss';
 
 @theme {
+  --breakpoint-xs: 480px;
   --font-sans: 'DM Sans', sans-serif;
   --font-display: 'DM Serif Display', serif;
 
@@ -92,6 +93,15 @@ html {
 
   /* page breaks */
   .print-avoid { break-inside: avoid; }
+}
+
+/* Hide scrollbar for tab overflow scroll */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 ::-webkit-scrollbar {
