@@ -141,7 +141,7 @@ function DayHeatmap({ byDate, division }: { byDate: Record<string, number>; divi
             <div
               key={d}
               onClick={() => setSelectedDay(isSelected ? null : d)}
-              className={`rounded-lg flex flex-col items-center justify-center py-1.5 cursor-pointer select-none active:scale-90 touch-manipulation transition-transform duration-100${isSelected ? ' scale-105' : ''}`}
+              className={`rounded-lg flex flex-col items-center justify-center py-1.5 cursor-pointer select-none touch-manipulation${isSelected ? ' scale-105' : ''}`}
               style={{
                 backgroundColor: bg,
                 minHeight: '3rem',
@@ -169,7 +169,7 @@ function DayHeatmap({ byDate, division }: { byDate: Record<string, number>; divi
           {selV > 0
             ? <div className="text-slate-300">{fmt(selV)} tugas</div>
             : <div className="text-slate-400">Tidak aktif</div>}
-          <button onClick={() => setSelectedDay(null)} className="ml-auto text-slate-400 hover:text-white transition-colors">
+          <button onClick={() => setSelectedDay(null)} className="ml-auto text-slate-400 hover:text-white">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -240,7 +240,7 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
   return (
     <div className="min-h-screen bg-[#f8fafc]">
       <div className="sticky top-0 z-20 bg-white border-b border-slate-200 px-3 sm:px-8 py-2.5 flex items-center gap-2 sm:gap-4 no-print">
-        <button onClick={onBack} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-sm font-semibold transition-all shadow-sm shadow-red-200 whitespace-nowrap flex-shrink-0">
+        <button onClick={onBack} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold shadow-sm shadow-red-200 whitespace-nowrap flex-shrink-0">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
           Kembali
         </button>
@@ -250,7 +250,7 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
         <button
           onClick={() => exportOfficerCSV(officer, monthLabel)}
           title="Ekspor CSV"
-          className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 active:scale-95 text-emerald-700 text-sm font-semibold transition-all border border-emerald-200 flex-shrink-0"
+          className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-semibold border border-emerald-200 flex-shrink-0"
         >
           <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -260,7 +260,7 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
         <button
           onClick={() => window.print()}
           title="Cetak / PDF"
-          className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 text-sm font-semibold transition-all flex-shrink-0"
+          className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold flex-shrink-0"
         >
           <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.056 48.056 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
@@ -270,8 +270,8 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-8 py-8 space-y-6">
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 flex flex-col sm:flex-row sm:items-start gap-4 animate-fade-up">
-          <div className={`w-14 h-14 rounded-xl ${meta.bg} flex items-center justify-center text-white font-bold text-xl flex-shrink-0 animate-pop`} style={{ animationDelay: '80ms' }}>
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 flex flex-col sm:flex-row sm:items-start gap-4">
+          <div className={`w-14 h-14 rounded-xl ${meta.bg} flex items-center justify-center text-white font-bold text-xl flex-shrink-0`}>
             {officer.name.trim().split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
           </div>
           <div className="flex-1">
@@ -279,7 +279,7 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
             <p className="text-slate-400 text-sm mt-0.5">@{officer.username}</p>
             <div className="mt-2"><DivisionBadge division={officer.division} /></div>
           </div>
-          <div className="sm:text-right animate-fade-up" style={{ animationDelay: '100ms' }}>
+          <div className="sm:text-right">
             <div className={`text-3xl font-bold tabular-nums ${acc}`}>{fmt(officer.totalRecords)}</div>
             <div className="text-xs text-slate-400 mt-0.5">Total Tugas · {monthLabel}</div>
           </div>
@@ -292,14 +292,14 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
             { label: 'Rata-rata/Hari', value: fmt(avgPerDay) },
             { label: 'Tertinggi/Hari', value: fmt(maxDay) },
           ].map((s, i) => (
-            <div key={s.label} className="bg-white rounded-xl border border-slate-200 p-4 animate-fade-up hover:shadow-md transition-shadow" style={{ animationDelay: `${160 + i * 60}ms` }}>
+            <div key={s.label} className="bg-white rounded-xl border border-slate-200 p-4">
               <div className={`text-xl font-bold tabular-nums ${acc}`}>{s.value}</div>
               <div className="text-xs text-slate-500 mt-1">{s.label}</div>
             </div>
           ))}
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 animate-fade-up" style={{ animationDelay: '400ms' }}>
+        <div className="bg-white rounded-2xl border border-slate-200 p-6">
           <h2 className="text-xs font-semibold text-slate-500 mb-4 uppercase tracking-widest">Aktivitas Harian — {monthLabel}</h2>
           <DayHeatmap byDate={byDate} division={officer.division} />
           <div className="flex items-center gap-2 mt-4">
@@ -312,7 +312,7 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
         </div>
 
         {/* Bar chart: records per active day */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 animate-fade-up" style={{ animationDelay: '480ms' }}>
+        <div className="bg-white rounded-2xl border border-slate-200 p-6">
           <h2 className="text-xs font-semibold text-slate-500 mb-4 uppercase tracking-widest">Grafik Tugas Per Hari</h2>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart
@@ -341,7 +341,7 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
         </div>
 
         {/* Donut chart: service breakdown */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 animate-fade-up" style={{ animationDelay: '540ms' }}>
+        <div className="bg-white rounded-2xl border border-slate-200 p-6">
           <h2 className="text-xs font-semibold text-slate-500 mb-5 uppercase tracking-widest">Kinerja Layanan</h2>
           {(() => {
             const palette = officer.division === 'kependudukan'
@@ -400,7 +400,7 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
           })()}
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 animate-fade-up" style={{ animationDelay: '600ms' }}>
+        <div className="bg-white rounded-2xl border border-slate-200 p-6">
           <h2 className="text-xs font-semibold text-slate-500 mb-4 uppercase tracking-widest">Layanan Terbanyak</h2>
           <div className="space-y-3.5">
             {topServices.map(([svc, cnt]) => (
@@ -417,7 +417,7 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 animate-fade-up" style={{ animationDelay: '660ms' }}>
+        <div className="bg-white rounded-2xl border border-slate-200 p-6">
           <h2 className="text-xs font-semibold text-slate-500 mb-4 uppercase tracking-widest">Layanan Kinerja</h2>
           <div className="space-y-3">
             {topProcesses.map(([proc, cnt]) => (
@@ -439,7 +439,7 @@ function OfficerDetail({ officer, onBack }: { officer: Officer; onBack: () => vo
           const maxDate = activeDates[vals.indexOf(maxVal)];
           const minDate = activeDates[vals.lastIndexOf(minVal)];
           return (
-            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden animate-fade-up" style={{ animationDelay: '720ms' }}>
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
                 <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Rincian Per Hari</h2>
                 <div className="flex items-center gap-3">
@@ -754,10 +754,10 @@ export default function App() {
       {/* Admin Login Modal */}
       {showLoginModal && (
         <div
-          className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={e => { if (e.target === e.currentTarget) { setShowLoginModal(false); setLoginInput(''); setLoginError(null); } }}
         >
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-scale-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
                 <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -783,7 +783,7 @@ export default function App() {
                     autoFocus
                     className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
                   />
-                  <button type="button" onClick={() => setLoginVisible(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                  <button type="button" onClick={() => setLoginVisible(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                     {loginVisible
                       ? <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" /></svg>
                       : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -795,10 +795,10 @@ export default function App() {
             </div>
 
             <div className="px-6 pb-6 flex gap-3">
-              <button onClick={() => { setShowLoginModal(false); setLoginInput(''); setLoginError(null); }} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+              <button onClick={() => { setShowLoginModal(false); setLoginInput(''); setLoginError(null); }} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50">
                 Batal
               </button>
-              <button onClick={handleLoginSubmit} disabled={loginLoading} className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+              <button onClick={handleLoginSubmit} disabled={loginLoading} className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2">
                 {loginLoading && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                 Masuk
               </button>
@@ -810,16 +810,16 @@ export default function App() {
       {/* Upload Modal */}
       {showUpload && (
         <div
-          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={e => { if (e.target === e.currentTarget) setShowUpload(false); }}
         >
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-scale-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
             <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <h2 className="text-base font-bold text-slate-900">Upload Rekap Petugas</h2>
                 <p className="text-xs text-slate-400 mt-0.5">File akan diproses langsung di browser, tidak dikirim ke server</p>
               </div>
-              <button onClick={() => setShowUpload(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
+              <button onClick={() => setShowUpload(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
@@ -838,7 +838,7 @@ export default function App() {
               />
 
               <div
-                className={`relative border-2 border-dashed rounded-xl p-10 text-center transition-all cursor-pointer ${
+                className={`relative border-2 border-dashed rounded-xl p-10 text-center cursor-pointer ${
                   dragOver
                     ? 'border-blue-400 bg-blue-50'
                     : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
@@ -893,9 +893,9 @@ export default function App() {
 
       {/* Edit Officer Modal */}
       {editingOfficer && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={e => { if (e.target === e.currentTarget) setEditingOfficer(null); }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-scale-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
                 <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
@@ -922,7 +922,7 @@ export default function App() {
                   {(['kependudukan', 'pencatatan_sipil'] as Division[]).map(div => (
                     <button key={div} type="button"
                       onClick={() => setEditForm(f => ({ ...f, division: div }))}
-                      className={`py-2.5 rounded-xl text-xs font-semibold border transition-all ${editForm.division === div
+                      className={`py-2.5 rounded-xl text-xs font-semibold border ${editForm.division === div
                         ? div === 'kependudukan' ? 'bg-blue-600 text-white border-blue-600' : 'bg-emerald-600 text-white border-emerald-600'
                         : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>
                       {DIVISION_META[div].label}
@@ -933,8 +933,8 @@ export default function App() {
               {editError && <p className="text-xs text-red-500 font-medium bg-red-50 border border-red-100 rounded-lg px-3 py-2">{editError}</p>}
             </div>
             <div className="px-6 pb-6 flex gap-3">
-              <button onClick={() => setEditingOfficer(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">Batal</button>
-              <button onClick={handleSaveEdit} disabled={editSaving} className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+              <button onClick={() => setEditingOfficer(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50">Batal</button>
+              <button onClick={handleSaveEdit} disabled={editSaving} className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2">
                 {editSaving && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                 Simpan
               </button>
@@ -945,9 +945,9 @@ export default function App() {
 
       {/* Delete Confirmation Modal */}
       {deletingOfficer && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={e => { if (e.target === e.currentTarget && !deleteConfirming) setDeletingOfficer(null); }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-scale-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div className="p-6 text-center">
               <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
                 <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
@@ -958,8 +958,8 @@ export default function App() {
               </p>
             </div>
             <div className="px-6 pb-6 flex gap-3">
-              <button onClick={() => setDeletingOfficer(null)} disabled={deleteConfirming} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">Batal</button>
-              <button onClick={handleDeleteOfficer} disabled={deleteConfirming} className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+              <button onClick={() => setDeletingOfficer(null)} disabled={deleteConfirming} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50">Batal</button>
+              <button onClick={handleDeleteOfficer} disabled={deleteConfirming} className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 disabled:opacity-60 flex items-center justify-center gap-2">
                 {deleteConfirming && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                 Hapus
               </button>
@@ -978,16 +978,16 @@ export default function App() {
                 </div>
                 <span className="text-xs text-slate-400 font-medium uppercase tracking-widest">Dispendukcapil Kota Surabaya</span>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-bold leading-tight animate-fade-up" style={{ fontFamily: "'DM Serif Display', serif", animationDelay: '60ms' }}>
+              <h1 className="text-3xl sm:text-4xl font-bold leading-tight" style={{ fontFamily: "'DM Serif Display', serif" }}>
                 Rekap Kinerja Petugas
               </h1>
-              <p className="text-slate-400 text-sm mt-1 animate-fade-up" style={{ animationDelay: '120ms' }}>{monthLabel} · {activeOfficers.length} petugas aktif</p>
-              <p className="text-slate-300 text-sm font-mono tabular-nums mt-1 animate-fade-up" style={{ animationDelay: '150ms' }}>
+              <p className="text-slate-400 text-sm mt-1">{monthLabel} · {activeOfficers.length} petugas aktif</p>
+              <p className="text-slate-300 text-sm font-mono tabular-nums mt-1">
                 WIB {wibClock}
               </p>
             </div>
             <div className="flex flex-wrap items-end gap-2 sm:gap-3">
-              <div className="text-right pb-1 animate-fade-up" style={{ animationDelay: '180ms' }}>
+              <div className="text-right pb-1">
                 <div className="text-2xl font-bold tabular-nums">{fmt(totalRecords)}</div>
                 <div className="text-xs text-slate-400">Total Tugas</div>
               </div>
@@ -999,19 +999,19 @@ export default function App() {
                   </div>
                   <button
                     onClick={() => { setShowUpload(true); setUploadError(null); }}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs sm:text-sm font-medium text-white transition-colors whitespace-nowrap"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs sm:text-sm font-medium text-white whitespace-nowrap"
                   >
                     <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" /></svg>
                     Upload
                   </button>
-                  <button onClick={handleLogout} className="px-2.5 py-2 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-xs font-medium text-slate-300 transition-colors whitespace-nowrap">
+                  <button onClick={handleLogout} className="px-2.5 py-2 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-xs font-medium text-slate-300 whitespace-nowrap">
                     Logout
                   </button>
                 </div>
               ) : (
                 <button
                   onClick={() => { setShowLoginModal(true); setLoginInput(''); setLoginError(null); }}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs sm:text-sm font-medium text-white transition-colors whitespace-nowrap"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs sm:text-sm font-medium text-white whitespace-nowrap"
                 >
                   <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
                   Login Admin
@@ -1031,12 +1031,11 @@ export default function App() {
                   <button
                     key={mk}
                     onClick={() => { setActiveMonth(mk); setDivFilter('semua'); setSearch(''); }}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all animate-slide-right ${
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold ${
                       isActive
                         ? 'bg-white text-slate-900 shadow-md'
                         : 'bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white'
                     }`}
-                    style={{ animationDelay: `${i * 60}ms` }}
                   >
                     <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-blue-500' : 'bg-white/40'}`} />
                     {MONTH_NAMES[m]} {y}
@@ -1055,8 +1054,7 @@ export default function App() {
                 <button
                   key={div}
                   onClick={() => setDivFilter(divFilter === div ? 'semua' : div)}
-                  className={`flex items-center gap-4 px-5 py-4 rounded-xl border transition-all text-left animate-fade-up ${divFilter === div ? 'border-white/30 bg-white/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
-                  style={{ animationDelay: `${240 + di * 80}ms` }}
+                  className={`flex items-center gap-4 px-5 py-4 rounded-xl border text-left ${divFilter === div ? 'border-white/30 bg-white/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
                 >
                   <div className={`w-3 h-3 rounded-full ${m.dot} flex-shrink-0`} />
                   <div className="flex-1 min-w-0">
@@ -1077,7 +1075,7 @@ export default function App() {
               <button
                 key={tab.id}
                 onClick={() => setDivFilter(tab.id)}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${divFilter === tab.id ? `${tab.active} bg-white/5` : 'border-transparent text-slate-400 hover:text-white'}`}
+                className={`px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap flex-shrink-0 ${divFilter === tab.id ? `${tab.active} bg-white/5` : 'border-transparent text-slate-400 hover:text-white'}`}
               >
                 {tab.label}
                 <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${divFilter === tab.id ? 'bg-white/15' : 'text-slate-500'}`}>{tab.count}</span>
@@ -1097,21 +1095,21 @@ export default function App() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Cari nama atau username..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors placeholder:text-slate-400"
+              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white placeholder:text-slate-400"
             />
           </div>
           <div className="flex items-center gap-1 flex-wrap">
             <span className="text-xs text-slate-400 mr-0.5">Urutkan:</span>
             <button
               onClick={() => setSortBy('name')}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${sortBy === 'name' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-500'}`}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium ${sortBy === 'name' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-500'}`}
             >
               {sortBy === 'name' && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>}
               Nama A–Z
             </button>
             <button
               onClick={() => setSortBy('totalRecords')}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${sortBy === 'totalRecords' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-500'}`}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium ${sortBy === 'totalRecords' ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-500'}`}
             >
               {sortBy === 'totalRecords' && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>}
               Terbanyak
@@ -1132,7 +1130,7 @@ export default function App() {
         const nameMax = isMobile ? 12 : 26;
         return (
           <div className="max-w-6xl mx-auto px-4 sm:px-8 pt-6">
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 animate-fade-up" style={{ animationDelay: '100ms' }}>
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6">
               <div className="flex items-center justify-between mb-4 sm:mb-5 gap-2 flex-wrap">
                 <div>
                   <h2 className="text-sm font-bold text-slate-800">Top 5 Petugas</h2>
@@ -1196,7 +1194,7 @@ export default function App() {
 
       {/* Table */}
       <div className="max-w-6xl mx-auto px-4 sm:px-8 py-6">
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden animate-fade-up" style={{ animationDelay: '160ms' }}>
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
           <div className={`hidden sm:grid px-5 py-3 bg-slate-50 border-b border-slate-100 ${isAdmin ? 'grid-cols-[2.5rem_1fr_1fr_9rem_7rem_5rem]' : 'grid-cols-[2.5rem_1fr_1fr_9rem_7rem]'}`}>
             <div />
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Nama Petugas</div>
@@ -1224,7 +1222,7 @@ export default function App() {
                   <button
                     key={officer.username}
                     onClick={() => setSelected(officer)}
-                    className={`w-full text-left px-4 sm:px-5 py-4 ${hoverCls} transition-colors group`}
+                    className={`w-full text-left px-4 sm:px-5 py-4 ${hoverCls} group`}
                   >
                     {/* Mobile */}
                     <div className="sm:hidden flex items-center gap-3">
@@ -1244,11 +1242,11 @@ export default function App() {
                         {isAdmin && (
                           <>
                             <button onClick={e => { e.stopPropagation(); handleStartEdit(officer); }}
-                              className="p-1.5 rounded-lg hover:bg-blue-100 text-blue-400 transition-colors flex-shrink-0">
+                              className="p-1.5 rounded-lg hover:bg-blue-100 text-blue-400 flex-shrink-0">
                               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
                             </button>
                             <button onClick={e => { e.stopPropagation(); setDeletingOfficer(officer); }}
-                              className="p-1.5 rounded-lg hover:bg-red-100 text-red-400 transition-colors flex-shrink-0">
+                              className="p-1.5 rounded-lg hover:bg-red-100 text-red-400 flex-shrink-0">
                               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                             </button>
                           </>
@@ -1295,16 +1293,16 @@ export default function App() {
 
                       <div className="text-right">
                         <span className={`font-bold tabular-nums text-sm ${meta.color}`}>{fmt(officer.totalRecords)}</span>
-                        <svg className="w-3 h-3 text-slate-300 inline ml-1 group-hover:text-slate-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                        <svg className="w-3 h-3 text-slate-300 inline ml-1 group-hover:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                       </div>
                       {isAdmin && (
                         <div className="flex items-center justify-end gap-1">
                           <button onClick={e => { e.stopPropagation(); handleStartEdit(officer); }}
-                            className="p-1.5 rounded-lg hover:bg-blue-100 text-blue-400 transition-colors" title="Edit">
+                            className="p-1.5 rounded-lg hover:bg-blue-100 text-blue-400" title="Edit">
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
                           </button>
                           <button onClick={e => { e.stopPropagation(); setDeletingOfficer(officer); }}
-                            className="p-1.5 rounded-lg hover:bg-red-100 text-red-400 transition-colors" title="Hapus">
+                            className="p-1.5 rounded-lg hover:bg-red-100 text-red-400" title="Hapus">
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                           </button>
                         </div>
